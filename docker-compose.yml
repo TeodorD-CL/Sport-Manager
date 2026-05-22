@@ -1,0 +1,27 @@
+services:
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      # Bind-mount source so edits on the host are reflected immediately
+      - .:/var/www/html
+      # Keep vendor from the image — don't let the (empty) host folder shadow it
+      - vendor:/var/www/html/vendor
+    restart: unless-stopped
+
+  queue:
+    build: .
+    volumes:
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+    environment:
+      RUN_MIGRATIONS: "false"
+    command: ["php", "artisan", "queue:work", "--tries=1", "--sleep=3"]
+    restart: unless-stopped
+    depends_on:
+      - app
+
+volumes:
+  vendor:

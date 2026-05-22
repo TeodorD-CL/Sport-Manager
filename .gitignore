@@ -1,0 +1,47 @@
+# Laravel / PHP
+/vendor/
+/.phpunit.cache
+/.phpunit.result.cache
+/.phpactor.json
+/auth.json
+
+# Frontend build artifacts
+/node_modules/
+/public/hot
+/public/build
+
+# Runtime / generated files
+/public/storage
+/storage/*.key
+/storage/pail
+/storage/logs/*.log
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitignore
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+!.env.testing
+
+# Local databases
+/database/*.sqlite
+
+# Dev environments / editors
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+Homestead.json
+Homestead.yaml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Package manager / misc logs
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+pnpm-debug.log*

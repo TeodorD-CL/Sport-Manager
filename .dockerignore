@@ -1,0 +1,10 @@
+.git
+.env
+vendor/
+node_modules/
+storage/logs/*.log
+storage/app/public/
+public/build/
+.local/
+.config/
+attached_assets/

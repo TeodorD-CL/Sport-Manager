@@ -1,0 +1,151 @@
+Role: You are a Senior Laravel Architect and Lead Developer.
+Context: We are working in an existing Laravel 11 environment.
+Task: Build a production-ready Sports Hall Management System using the TALL stack.
+Input: Use the attached design image as the "Visual Source of Truth" for the UI (colors, fonts, spacing, layout).
+
+1. The Tech Stack (Strict)
+Framework: Laravel 11 (Already installed).
+
+Admin Panel: FilamentPHP v3 (with Panel Builder).
+
+Frontend: Livewire v3 + Blade + Tailwind CSS.
+
+Database: SQLite (Default).
+
+Icons: Heroicons.
+
+Modals: Use wire-elements/modal or native Livewire/Alpine modals.
+
+2. Core Packages to Install
+bezhansalleh/filament-shield: For Roles & Permissions (Admin vs Customer).
+
+saade/filament-fullcalendar: For the Admin booking calendar.
+
+spatie/opening-hours: To manage facility schedules (e.g., "Mon-Fri 08:00-22:00").
+
+spatie/laravel-medialibrary: For images.
+
+yesidid/filament-rating-field: For star ratings.
+
+simplesoftwareio/simple-qrcode: For generating check-in QR codes.
+
+3. Database Schema
+Create migrations using UUIDs as primary keys.
+
+User: Auth fields, phone, role (via Shield).
+
+Amenity: name (e.g., "Parking", "Wifi"), icon (Heroicon string).
+
+Rental: name (e.g., "Racket", "Ball"), price (integer/cents).
+
+Facility: name, description, city (indexed), address. Has Many Courts, Belongs to Many Amenities.
+
+Court: facility_id (FK), name, type (enum: 'Football', 'Tennis', 'Padel', 'Swimming'), base_price_per_hour (integer/cents), image_path.
+
+Booking:
+
+user_id (FK), court_id (FK).
+
+start_time (datetime), end_time (datetime).
+
+status (enum: 'confirmed', 'cancelled', 'completed', 'checked_in').
+
+total_price (integer/cents) - Stores final price after dynamic rules.
+
+qr_code (string/text) - Stores the unique check-in string.
+
+Constraint: Prevent overlapping bookings on the DB level.
+
+BookingRental (Pivot): Links Booking and Rental (with quantity).
+
+Review: user_id, facility_id, rating (1-5), comment.
+
+4. Admin Panel Features (Filament)
+Resource Management:
+
+Facility: CheckboxList for Amenities, Image Upload.
+
+Court: Select for Type, Money input for Base Price.
+
+Rental: Manage available equipment and prices.
+
+Calendar (Critical UX):
+
+Use filament-fullcalendar.
+
+Interaction: Clicking an empty slot opens a Modal to create a booking (select User, Time, Rentals).
+
+Check-In Action: Add a global action to "Scan QR Code" (input field) -> Updates booking status to checked_in.
+
+5. Customer Frontend Features (Livewire)
+Search & Discovery:
+
+Filter by City, Sport Type, Date, Amenities (checkbox group).
+
+Show Results as Cards (Image, Rating, Amenities Icons, Price).
+
+Pagination: 12 items per page.
+
+Booking Flow (Critical UX):
+
+User views Facility Detail -> Selects a Date -> Sees list of Available Time Slots.
+
+Action: When a user clicks a time slot:
+
+Trigger a Modal: Display "Confirm Booking".
+
+Modal Content:
+
+Summary: Court Name, Date, Time.
+
+Upsell: Checkboxes for Rentals (e.g., "Add Racket +$5").
+
+Price Calculation: Show Base Price + Peak Hour Surcharge + Rentals = Total.
+
+Buttons: Cancel vs Confirm & Book.
+
+Do not create the booking until "Confirm" is clicked.
+
+User Dashboard:
+
+"My Bookings" list.
+
+QR Code: Display the QR code for every active booking.
+
+"Cancel" button (only if start time > 24h away).
+
+6. Business Logic Rules
+Availability: WHERE court_id = ? AND NOT (end_time <= ? OR start_time >= ?).
+
+Dynamic Pricing:
+
+Peak Hours: If booking is between 18:00-22:00, add 20% to the base price.
+
+Weekends: If Sat/Sun, add 10%.
+
+Search Logic: Searching "Tennis" returns Facilities that have at least one Tennis court.
+
+QR Code: Generate a unique string (e.g., booking-uuid) upon confirmation.
+
+7. Execution Steps
+Setup: Configure Tailwind and Livewire.
+
+Database: Migrations & Models (including Pivot tables for Amenities/Rentals).
+
+Admin: Generate Resources, Shield Roles, and the Check-In Action.
+
+Frontend: Build Search, Detail Page, and the Booking Modal Component with Dynamic Pricing Logic.
+
+Seeding:
+
+5 Amenities (Parking, Wifi, Showers, Lockers, Cafe).
+
+3 Rentals (Racket, Ball, Towel).
+
+5 Facilities (with amenities & images).
+
+3 Courts per Facility.
+
+1 Admin (admin@test.com), 1 Customer (user@test.com).
+
+Action: Execute this plan step-by-step. Do not ask for clarification, just build.
