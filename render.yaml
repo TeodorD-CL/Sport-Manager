@@ -17,7 +17,7 @@ services:
           name: sport-manager-web
           property: url
       - key: APP_KEY
-        generateValue: true
+        sync: false
       - key: LOG_CHANNEL
         value: stderr
       - key: DB_CONNECTION

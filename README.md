@@ -23,10 +23,20 @@ In Render dashboard:
   - `sport-manager-worker` (queue worker)
   - `sport-manager-db` (PostgreSQL)
 
-### 3) Ensure `APP_KEY` is shared by web and worker
+### 3) Set `APP_KEY` manually on both services
 
-`APP_KEY` is auto-generated for the web service in the blueprint.
-Set the **same** value on the worker service manually (Environment tab), then redeploy worker.
+`APP_KEY` is intentionally left manual in the blueprint.
+Set the **same** value on both `sport-manager-web` and `sport-manager-worker`:
+
+```bash
+php artisan key:generate --show
+```
+
+If you do not have PHP locally, run it in Docker:
+
+```bash
+docker-compose exec app php artisan key:generate --show
+```
 
 ### 4) First deploy checks
 
