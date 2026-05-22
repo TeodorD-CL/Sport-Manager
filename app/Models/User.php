@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use BezhanSalleh\FilamentShield\Traits\HasPanelShield;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +13,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements FilamentUser
 {
-    use HasFactory, Notifiable, HasPanelShield, HasRoles;
+    use HasFactory, Notifiable, HasRoles;
 
     protected $fillable = [
         'name',
