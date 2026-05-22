@@ -16,6 +16,31 @@ if [ -n "${APP_KEY:-}" ]; then
     ' .env > .env.tmp && mv .env.tmp .env
 fi
 
+# Sync critical runtime env vars into .env to avoid stale defaults.
+set_env_var() {
+    key="$1"
+    value="$2"
+    if [ -z "$value" ]; then
+        return
+    fi
+    awk -v k="$key" -v v="$value" '
+        BEGIN { done = 0 }
+        index($0, k "=") == 1 { print k "=" v; done = 1; next }
+        { print }
+        END { if (!done) print k "=" v }
+    ' .env > .env.tmp && mv .env.tmp .env
+}
+
+set_env_var "DB_CONNECTION" "${DB_CONNECTION:-}"
+set_env_var "DB_HOST" "${DB_HOST:-}"
+set_env_var "DB_PORT" "${DB_PORT:-}"
+set_env_var "DB_DATABASE" "${DB_DATABASE:-}"
+set_env_var "DB_USERNAME" "${DB_USERNAME:-}"
+set_env_var "DB_PASSWORD" "${DB_PASSWORD:-}"
+set_env_var "SESSION_DRIVER" "${SESSION_DRIVER:-}"
+set_env_var "CACHE_STORE" "${CACHE_STORE:-}"
+set_env_var "QUEUE_CONNECTION" "${QUEUE_CONNECTION:-}"
+
 # Generate app key only if still empty after env sync.
 if ! grep -q "^APP_KEY=.\+" .env; then
     php artisan key:generate --ansi --force
