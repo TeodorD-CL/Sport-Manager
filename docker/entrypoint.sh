@@ -1,6 +1,13 @@
 #!/bin/sh
 set -e
 
+is_truthy() {
+    case "$(echo "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+        1|true|yes|on) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # Create .env from example on first run (file is bind-mounted so it appears on the host too)
 if [ ! -f .env ]; then
     cp .env.example .env
@@ -61,8 +68,14 @@ fi
 chmod -R 775 storage bootstrap/cache 2>/dev/null || true
 
 # Run migrations only when enabled (web should run them, worker should not)
-if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+if is_truthy "${RUN_MIGRATIONS:-true}"; then
     php artisan migrate --force
+fi
+
+# Optional one-time seeding for environments without shell access (e.g. free Render).
+# Keep RUN_SEED=false by default and enable only when needed.
+if is_truthy "${RUN_SEED:-false}"; then
+    php artisan db:seed --force
 fi
 
 exec "$@"

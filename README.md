@@ -42,6 +42,8 @@ docker-compose exec app php artisan key:generate --show
 
 The web service runs migrations automatically at startup (`RUN_MIGRATIONS=true`).
 The worker skips migrations (`RUN_MIGRATIONS=false`).
+If you need seeded demo users/data and do not have Render shell access, set
+`RUN_SEED=true` on the web service for one deploy, then set it back to `false`.
 
 After deploy, open:
 
