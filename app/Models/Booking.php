@@ -75,14 +75,20 @@ class Booking extends Model
 
         $rentalCost = 0;
         if (!empty($rentals)) {
-            $rentalIds = array_column($rentals, 'id');
+            $rentalIds = array_filter(
+                array_column($rentals, 'id'),
+                fn($id) => \Illuminate\Support\Str::isUuid($id)
+            );
             $quantities = array_column($rentals, 'quantity', 'id');
-            $rentalModels = Rental::whereIn('id', $rentalIds)->get()->keyBy('id');
 
-            foreach ($rentalIds as $rentalId) {
-                $rentalModel = $rentalModels->get($rentalId);
-                if ($rentalModel) {
-                    $rentalCost += $rentalModel->price * ($quantities[$rentalId] ?? 1);
+            if (!empty($rentalIds)) {
+                $rentalModels = Rental::whereIn('id', $rentalIds)->get()->keyBy('id');
+
+                foreach ($rentalIds as $rentalId) {
+                    $rentalModel = $rentalModels->get($rentalId);
+                    if ($rentalModel) {
+                        $rentalCost += $rentalModel->price * ($quantities[$rentalId] ?? 1);
+                    }
                 }
             }
         }

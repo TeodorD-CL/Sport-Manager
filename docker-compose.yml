@@ -9,6 +9,16 @@ services:
       - .:/var/www/html
       # Keep vendor from the image — don't let the (empty) host folder shadow it
       - vendor:/var/www/html/vendor
+    environment:
+      - DB_CONNECTION=pgsql
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_DATABASE=sport_manager
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=secret
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
   queue:
@@ -17,11 +27,38 @@ services:
       - .:/var/www/html
       - vendor:/var/www/html/vendor
     environment:
-      RUN_MIGRATIONS: "false"
+      - RUN_MIGRATIONS=false
+      - DB_CONNECTION=pgsql
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_DATABASE=sport_manager
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=secret
     command: ["php", "artisan", "queue:work", "--tries=1", "--sleep=3"]
-    restart: unless-stopped
     depends_on:
-      - app
+      app:
+        condition: service_started
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: sport_manager
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sport_manager"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   vendor:
+  pgdata:
