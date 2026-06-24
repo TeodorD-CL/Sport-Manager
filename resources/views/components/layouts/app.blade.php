@@ -143,6 +143,7 @@
     </main>
 
     @livewireScripts
+    @livewire('chatbot')
     @stack('scripts')
 </body>
 </html>

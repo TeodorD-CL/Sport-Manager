@@ -204,7 +204,7 @@ class BookingTest extends TestCase
             'price' => 500,
             'suitable_for' => ['Tennis'],
         ]);
-        $weekday = Carbon::parse('2026-06-01')->format('Y-m-d'); // Monday, off-peak
+        $weekday = Carbon::parse('next monday')->format('Y-m-d'); // Monday, off-peak
 
         Livewire::actingAs($user)
             ->test(\App\Livewire\FacilityDetail::class, ['id' => $facility->id])
