@@ -81,4 +81,14 @@ class Facility extends Model
             },
         );
     }
+
+    protected function lowestPriceFormatted(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $min = $this->courts->min('base_price_per_hour');
+                return $min ? number_format($min / 100, 0) . ' MKD' : 'N/A';
+            }
+        );
+    }
 }

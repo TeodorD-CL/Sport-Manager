@@ -1,155 +1,199 @@
 <div>
-    <section class="relative bg-gray-900 py-24">
-        <div class="absolute inset-0">
-            <img src="/images/hero-bg.jpg" alt="Sports Center" class="w-full h-full object-cover opacity-40">
+    <div class="max-w-7xl mx-auto px-6 pt-16 pb-12">
+        {{-- Hero --}}
+        <div class="mb-12">
+            <p class="text-[10px] font-bold text-gray-500 tracking-[0.1em] uppercase mb-6">
+                Sports Facilities &bull; North Macedonia
+            </p>
+            <h1 class="text-[52px] leading-[1.05] font-bold text-[#111] tracking-[-0.03em] max-w-2xl mb-6">
+                Every court in the country,<br>bookable by the hour.
+            </h1>
+            <p class="text-[15px] text-gray-600 leading-relaxed max-w-lg">
+                Live availability across arenas, halls and pools. Choose a slot,<br>
+                reserve it, and play &mdash; no calls, no waiting.
+            </p>
         </div>
-        <div class="relative max-w-7xl mx-auto px-4 text-center">
-            <h1 class="text-4xl md:text-5xl font-bold text-white mb-8">Sports Center Booking</h1>
-            <div class="bg-white rounded-lg shadow-lg p-4 md:p-6 max-w-4xl mx-auto">
-                <form wire:submit="search" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <select wire:model.live="city" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-4 py-3">
-                        <option value="">Select Town</option>
-                        @foreach($cities as $c)
-                            <option value="{{ $c }}">{{ $c }}</option>
-                        @endforeach
-                    </select>
-                    <select wire:model.live="type" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-4 py-3">
-                        <option value="">All Types</option>
-                        <option value="Football">Football</option>
-                        <option value="Tennis">Tennis</option>
-                        <option value="Padel">Padel</option>
-                        <option value="Swimming">Swimming</option>
-                    </select>
-                    <input type="date" wire:model="date" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-4 py-3">
-                    <button type="submit" class="w-full bg-gray-900 text-white rounded-md px-6 py-3 font-semibold hover:bg-gray-800 transition flex items-center justify-center gap-2">
-                        <svg wire:loading wire:target="search" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                        </svg>
-                        <span>Search</span>
+
+        {{-- Search Form --}}
+        <div class="mb-12 border-y border-black">
+            <form wire:submit="search" class="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] divide-y md:divide-y-0 md:divide-x divide-black">
+                
+                {{-- City --}}
+                <div class="relative py-3 px-4 flex flex-col justify-center" x-data="{ open: false }">
+                    <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">City</label>
+                    <button type="button" @click="open = !open" @click.outside="open = false" class="w-full flex justify-between items-center bg-transparent text-[14px] font-bold text-black border-none p-0 text-left focus:outline-none">
+                        <span>{{ $city ?: 'All cities' }}</span>
+                        <svg class="w-2.5 h-2.5 text-black transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
-                </form>
-
-                <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-3 items-center justify-between">
-                    <div class="flex flex-wrap gap-2 items-center">
-                        @if($amenities->isNotEmpty())
-                            <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Amenities:</span>
-                            @foreach($amenities as $amenity)
-                                <label class="flex items-center gap-1.5 cursor-pointer select-none">
-                                    <input
-                                        type="checkbox"
-                                        wire:model.live="amenityFilters"
-                                        value="{{ $amenity->id }}"
-                                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                    >
-                                    <span class="text-sm text-gray-700 {{ in_array($amenity->id, $amenityFilters) ? 'font-semibold' : '' }}">
-                                        {{ $amenity->name }}
-                                    </span>
-                                </label>
-                            @endforeach
-                        @endif
+                    
+                    <div x-show="open" x-cloak x-transition.opacity class="absolute top-full left-0 mt-0 w-full min-w-[200px] bg-[#f4f3ed] border border-black z-50">
+                        <button type="button" wire:click="$set('city', '')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black hover:bg-black hover:text-white transition-colors {{ $city === '' ? 'bg-black text-white' : 'text-black' }}">All cities</button>
+                        @foreach($cities as $c)
+                            <button type="button" wire:click="$set('city', '{{ $c }}')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black last:border-b-0 hover:bg-black hover:text-white transition-colors {{ $city === $c ? 'bg-black text-white' : 'text-black' }}">{{ $c }}</button>
+                        @endforeach
                     </div>
+                </div>
 
-                    <div class="flex items-center gap-3">
-                        <select wire:model.live="sort" class="text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-1.5 pl-3 pr-8">
-                            <option value="">Sort: Default</option>
-                            <option value="rating">Highest Rated</option>
-                            <option value="reviews">Most Reviewed</option>
-                            <option value="price_asc">Price: Low to High</option>
-                            <option value="price_desc">Price: High to Low</option>
-                        </select>
+                {{-- Sport --}}
+                <div class="relative py-3 px-4 flex flex-col justify-center" x-data="{ open: false }">
+                    <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Sport</label>
+                    <button type="button" @click="open = !open" @click.outside="open = false" class="w-full flex justify-between items-center bg-transparent text-[14px] font-bold text-black border-none p-0 text-left focus:outline-none">
+                        <span>{{ $type ?: 'All sports' }}</span>
+                        <svg class="w-2.5 h-2.5 text-black transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    
+                    <div x-show="open" x-cloak x-transition.opacity class="absolute top-full left-0 mt-0 w-full min-w-[200px] bg-[#f4f3ed] border border-black z-50">
+                        <button type="button" wire:click="$set('type', '')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black hover:bg-black hover:text-white transition-colors {{ $type === '' ? 'bg-black text-white' : 'text-black' }}">All sports</button>
+                        <button type="button" wire:click="$set('type', 'Football')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black hover:bg-black hover:text-white transition-colors {{ $type === 'Football' ? 'bg-black text-white' : 'text-black' }}">Football</button>
+                        <button type="button" wire:click="$set('type', 'Tennis')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black hover:bg-black hover:text-white transition-colors {{ $type === 'Tennis' ? 'bg-black text-white' : 'text-black' }}">Tennis</button>
+                        <button type="button" wire:click="$set('type', 'Padel')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black hover:bg-black hover:text-white transition-colors {{ $type === 'Padel' ? 'bg-black text-white' : 'text-black' }}">Padel</button>
+                        <button type="button" wire:click="$set('type', 'Swimming')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold hover:bg-black hover:text-white transition-colors {{ $type === 'Swimming' ? 'bg-black text-white' : 'text-black' }}">Swimming</button>
+                    </div>
+                </div>
 
-                        @if($city || $type || $date || !empty($amenityFilters) || $sort)
-                            <button wire:click="clearFilters" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap">
-                                Clear all
-                            </button>
-                        @endif
+                {{-- Date --}}
+                <div class="relative py-3 px-4" wire:ignore>
+                    <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Date</label>
+                    <input type="text" 
+                           x-data="{ value: @entangle('date') }" 
+                           x-init="flatpickr($el, { dateFormat: 'Y-m-d', minDate: 'today', defaultDate: value, onChange: function(selectedDates, dateStr) { value = dateStr; } })" 
+                           class="w-full bg-transparent text-[14px] font-bold text-black border-none p-0 focus:ring-0 cursor-pointer placeholder-black" 
+                           placeholder="Select date">
+                </div>
+
+                {{-- Submit --}}
+                <button type="submit" class="bg-[#111] text-white px-10 py-4 font-bold text-[13px] hover:bg-black transition-colors flex items-center justify-center">
+                    Search
+                </button>
+            </form>
+        </div>
+
+        {{-- Filters & Sort --}}
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+            <div class="flex items-center gap-4 flex-wrap">
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Amenities</span>
+                <div class="flex flex-wrap gap-2">
+                    @foreach($amenities as $amenity)
+                        <label class="cursor-pointer">
+                            <input type="checkbox" wire:model.live="amenityFilters" value="{{ $amenity->id }}" class="sr-only peer">
+                            <div class="px-3 py-1 text-[11px] border border-gray-300 text-gray-700 peer-checked:bg-[#111] peer-checked:text-white peer-checked:border-[#111] transition-colors">
+                                {{ $amenity->name }}
+                            </div>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2" x-data="{ open: false }">
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Sort</span>
+                <div class="relative">
+                    <button type="button" @click="open = !open" @click.outside="open = false" class="flex items-center gap-1.5 bg-transparent text-[13px] font-bold text-black border-none p-0 focus:outline-none">
+                        @php
+                            $sortLabels = [
+                                '' => 'Recommended',
+                                'rating' => 'Highest Rated',
+                                'reviews' => 'Most Reviewed',
+                                'price_asc' => 'Price: Low to High',
+                                'price_desc' => 'Price: High to Low',
+                            ];
+                        @endphp
+                        <span>{{ $sortLabels[$sort] ?? 'Recommended' }}</span>
+                        <svg class="w-2.5 h-2.5 text-black transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+
+                    <div x-show="open" x-cloak x-transition.opacity class="absolute top-full right-0 mt-2 w-48 bg-[#f4f3ed] border border-black z-50 shadow-xl">
+                        @foreach($sortLabels as $val => $label)
+                            <button type="button" wire:click="$set('sort', '{{ $val }}')" @click="open = false" class="w-full text-left px-4 py-2 text-[12px] font-bold border-b border-black last:border-b-0 hover:bg-black hover:text-white transition-colors {{ $sort === $val ? 'bg-black text-white' : 'text-black' }}">{{ $label }}</button>
+                        @endforeach
                     </div>
                 </div>
             </div>
         </div>
-    </section>
 
-    <section class="max-w-7xl mx-auto px-4 py-12">
-        <div class="flex items-center justify-between mb-8">
-            <h2 class="text-2xl font-bold text-gray-900">
-                @if($city || $type || $date || !empty($amenityFilters))
-                    Search Results
-                    <span class="text-lg font-normal text-gray-500">({{ $facilities->total() }})</span>
-                @else
-                    Popular Facilities
-                @endif
-            </h2>
-            <div wire:loading.flex class="items-center gap-2 text-sm text-gray-500">
-                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                </svg>
-                Loading...
-            </div>
+        {{-- Results Header --}}
+        <div class="flex items-end gap-3 mb-4">
+            <h2 class="text-xl font-bold text-black tracking-tight">Facilities</h2>
+            <span class="text-[11px] text-gray-500 pb-0.5">{{ str_pad($facilities->total(), 2, '0', STR_PAD_LEFT) }} available</span>
         </div>
+        <div class="w-full h-px bg-black mb-6"></div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" wire:loading.class="opacity-50">
-            @forelse($facilities as $facility)
-                <a href="/facility/{{ $facility->id }}" class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition group">
+        {{-- Loading State Overlay --}}
+        <div class="relative min-h-[400px]">
+            <div wire:loading.flex class="absolute inset-0 bg-stone-bg/50 z-10 flex items-start justify-center pt-20">
+                <span class="text-[11px] font-bold uppercase tracking-widest text-black">Updating...</span>
+            </div>
+
+            {{-- Cards Grid --}}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10" wire:loading.class="opacity-50">
+                @forelse($facilities as $index => $facility)
                     @php
                         $image = $facility->courts->first()?->image_path ?? $facility->image_path ?? '/images/sports-hall.jpg';
                         if ($image && !str_starts_with($image, '/') && !str_starts_with($image, 'http')) {
                             $image = '/storage/' . $image;
                         }
+                        $avg = round($facility->reviews_avg_rating ?? 0, 1);
+                        
                     @endphp
-                    <div class="aspect-video overflow-hidden">
-                        <img src="{{ $image }}" alt="{{ $facility->name }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
-                    </div>
-                    <div class="p-4">
-                        <h3 class="font-bold text-gray-900 text-lg">{{ $facility->name }}</h3>
-                        <p class="text-gray-500 text-sm mt-1">{{ $facility->city }}</p>
-                        <div class="flex items-center mt-2">
-                            @php
-                                $avg = round($facility->reviews_avg_rating ?? 0, 1);
-                                $count = $facility->reviews_count ?? 0;
-                            @endphp
-                            <div class="flex items-center">
-                                @for($i = 1; $i <= 5; $i++)
-                                    <svg class="w-4 h-4 {{ $i <= round($avg) ? 'text-yellow-400' : 'text-gray-300' }}" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                                    </svg>
-                                @endfor
-                                <span class="ml-1 text-sm text-gray-600">{{ $avg > 0 ? $avg : 'No reviews' }} {{ $count > 0 ? "($count)" : '' }}</span>
+                    <a href="/facility/{{ $facility->id }}" class="group block">
+                        {{-- Image Box --}}
+                        <div class="relative aspect-[4/3] bg-[#e8e5dc] mb-4 overflow-hidden border border-gray-200">
+                            <img src="{{ $image }}" alt="{{ $facility->name }}" class="w-full h-full object-cover">
+                            
+
+
+                        </div>
+                        
+                        {{-- Content --}}
+                        <div>
+                            <div class="flex justify-between items-start mb-1">
+                                <h3 class="font-bold text-[15px] text-black tracking-tight group-hover:underline">{{ $facility->name }}</h3>
+                                @if($avg > 0)
+                                    <div class="flex items-center gap-1 text-[11px] font-bold text-black">
+                                        <svg class="w-3 h-3 text-[#d13a3a]" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                        {{ number_format($avg, 1) }} <span class="text-gray-400 font-normal">({{ $facility->reviews_count }})</span>
+                                    </div>
+                                @endif
+                            </div>
+                            
+                            <p class="text-[12px] text-gray-500 mb-2">{{ $facility->city }}</p>
+                            
+                            <div class="flex flex-wrap gap-2 text-[10px] text-gray-500 mb-4 uppercase tracking-widest">
+                                @php $amenitiesStr = $facility->amenities->take(3)->pluck('name')->join(' &nbsp;&bull;&nbsp; ') @endphp
+                                {!! $amenitiesStr !!}
+                                @if($facility->amenities->count() > 3)
+                                    &nbsp;&bull;&nbsp; +{{ $facility->amenities->count() - 3 }}
+                                @endif
+                            </div>
+
+                            <div class="w-full h-px bg-gray-200 mb-3"></div>
+
+                            <div class="flex justify-between items-baseline">
+                                <div>
+                                    <span class="text-[16px] font-bold text-black">{{ explode(' ', $facility->lowest_price_formatted)[0] }}</span>
+                                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">MKD / hr</span>
+                                </div>
+                                <span class="text-[11px] font-bold text-black uppercase tracking-widest group-hover:tracking-[0.15em] transition-all">
+                                    Book &rarr;
+                                </span>
                             </div>
                         </div>
-                        <div class="flex flex-wrap gap-1 mt-3">
-                            @foreach($facility->amenities->take(3) as $amenity)
-                                <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{{ $amenity->name }}</span>
-                            @endforeach
-                        </div>
-                        <div class="mt-3 pt-3 border-t">
-                            @php
-                                $lowestPrice = $facility->courts->min('base_price_per_hour');
-                            @endphp
-                            <span class="text-lg font-bold text-indigo-600">{{ $lowestPrice ? number_format($lowestPrice / 100, 0) . ' MKD' : 'N/A' }}</span>
-                            <span class="text-sm text-gray-500">/hr</span>
-                        </div>
+                    </a>
+                @empty
+                    <div class="col-span-full py-16 border-y border-black text-center">
+                        <p class="text-sm font-bold text-black uppercase tracking-widest mb-2">No facilities found</p>
+                        <p class="text-xs text-gray-500 mb-6">Adjust your search parameters to find available courts.</p>
+                        <button wire:click="clearFilters" class="text-xs font-bold text-black underline hover:no-underline">
+                            Clear filters
+                        </button>
                     </div>
-                </a>
-            @empty
-                <div class="col-span-full py-16 flex flex-col items-center text-center">
-                    <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
-                    </svg>
-                    <p class="text-xl font-semibold text-gray-600 mb-2">No facilities found</p>
-                    <p class="text-gray-400 mb-6">Try adjusting your filters or searching in a different city.</p>
-                    <button wire:click="clearFilters" class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition font-medium">
-                        Clear Filters
-                    </button>
-                </div>
-            @endforelse
+                @endforelse
+            </div>
         </div>
 
         @if($facilities->hasPages())
-            <div class="mt-8">
+            <div class="mt-12 pt-8 border-t border-black">
                 {{ $facilities->links() }}
             </div>
         @endif
-    </section>
+    </div>
 </div>

@@ -4,119 +4,145 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <title>Sport-Manager</title>
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
+    <title>Sport Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        'stone-bg': '#f4f3ed', // Warm off-white from the design
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     @stack('head')
     @livewireStyles
-</head>
-<body class="font-sans antialiased bg-gray-50 min-h-screen flex flex-col">
-    <nav x-data="{ open: false }" class="bg-gray-900 text-white relative z-30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <a href="/" class="text-xl font-bold tracking-wide">Sport-Manager</a>
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: 'Inter', sans-serif; background-color: #f4f3ed; color: #111; }
+        
+        /* Remove default select styling to match the raw design */
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: none;
+        }
+        
+        input:focus, select:focus, textarea:focus, button:focus {
+            outline: none;
+        }
 
-                {{-- Desktop nav --}}
-                <div class="hidden md:flex items-center space-x-4">
+        /* Brutalist Flatpickr Theme */
+        .flatpickr-calendar {
+            background: #f4f3ed !important;
+            border: 1px solid #111 !important;
+            border-radius: 0 !important;
+            box-shadow: 4px 4px 0 rgba(0,0,0,1) !important;
+            padding: 0 !important;
+            width: 300px !important;
+        }
+        .flatpickr-calendar::before, .flatpickr-calendar::after { display: none !important; }
+        .flatpickr-months {
+            background: #111 !important;
+            border-bottom: 1px solid #111 !important;
+            border-radius: 0 !important;
+            padding: 4px 0 !important;
+        }
+        .flatpickr-month { color: #fff !important; fill: #fff !important; }
+        .flatpickr-current-month { font-family: 'Inter', sans-serif !important; font-weight: bold !important; font-size: 14px !important; }
+        .flatpickr-current-month .flatpickr-monthDropdown-months { background: #111 !important; border-radius: 0 !important; }
+        .flatpickr-prev-month, .flatpickr-next-month { color: #fff !important; fill: #fff !important; }
+        .flatpickr-prev-month:hover, .flatpickr-next-month:hover { color: #ccc !important; fill: #ccc !important; }
+        .flatpickr-weekdays {
+            background: #f4f3ed !important;
+            border-bottom: 1px solid #111 !important;
+        }
+        span.flatpickr-weekday {
+            color: #111 !important;
+            font-family: 'Inter', sans-serif !important;
+            font-weight: bold !important;
+            font-size: 10px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.1em !important;
+        }
+        .flatpickr-day {
+            border-radius: 0 !important;
+            color: #111 !important;
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+            border: 1px solid transparent !important;
+        }
+        .flatpickr-day:hover {
+            background: #e8e5dc !important;
+            border-color: #111 !important;
+            color: #111 !important;
+        }
+        .flatpickr-day.selected {
+            background: #111 !important;
+            border-color: #111 !important;
+            color: #fff !important;
+            font-weight: bold !important;
+        }
+        .flatpickr-day.flatpickr-disabled {
+            color: #aaa !important;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Navigation -->
+    <header class="border-b border-black">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex justify-between items-center h-[72px]">
+                <!-- Logo -->
+                <a href="/" class="flex items-center gap-2 h-full py-5">
+                    <img src="/images/logo_icon.jpg" alt="Sport Manager" class="h-6 w-6 object-contain mix-blend-multiply">
+                    <span class="font-bold text-[15px] tracking-tight text-black mt-0.5">Sport Manager</span>
+                </a>
+
+                <!-- Desktop nav -->
+                <nav class="hidden md:flex items-center gap-8" x-data="{}">
+                    <a href="/" class="text-[13px] font-bold text-black border-b-2 {{ request()->is('/') ? 'border-black' : 'border-transparent hover:border-black' }} pb-1 mt-1">Browse</a>
+                    
                     @auth
-                        @if (Auth::user()->hasAdminPanelAccess())
-                            <a href="/admin" class="text-sm bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-full transition">Admin Panel</a>
+                        @if(Auth::user()->hasAdminPanelAccess())
+                            <a href="/admin" class="text-[13px] font-bold text-gray-500 hover:text-black transition-colors">Admin</a>
                         @endif
-                        <a href="/dashboard" class="text-sm {{ request()->is('dashboard') ? 'text-white font-semibold' : 'text-gray-300 hover:text-white' }} transition">My Bookings</a>
+                        <a href="/dashboard" class="text-[13px] font-bold {{ request()->is('dashboard') ? 'text-black border-b-2 border-black pb-1 mt-1' : 'text-gray-500 hover:text-black transition-colors' }}">Bookings</a>
+                        <a href="/profile" class="text-[13px] font-bold {{ request()->is('profile') ? 'text-black border-b-2 border-black pb-1 mt-1' : 'text-gray-500 hover:text-black transition-colors' }}">Profile</a>
                         <form method="POST" action="/logout" class="inline">
                             @csrf
-                            <button type="submit" class="text-sm text-gray-300 hover:text-white transition">Logout</button>
+                            <button type="submit" class="text-[13px] font-bold text-gray-500 hover:text-black transition-colors">Sign out</button>
                         </form>
-                        <a href="/profile" class="flex items-center gap-2 px-3 py-1.5 rounded-full {{ request()->is('profile') ? 'bg-gray-700' : 'hover:bg-gray-800' }} transition">
-                            <div class="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold">
-                                {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
-                            </div>
-                            <span class="text-sm">{{ Auth::user()->name }}</span>
-                        </a>
                     @else
-                        <a href="/login" class="text-sm {{ request()->is('login') ? 'text-white font-semibold' : 'text-gray-300 hover:text-white' }} transition">Login</a>
-                        <a href="/register" class="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-full transition">Register</a>
+                        <a href="/login" class="text-[13px] font-bold text-gray-500 hover:text-black transition-colors">Sign in</a>
+                        <a href="/register" class="text-[13px] font-bold text-gray-500 hover:text-black transition-colors">Register</a>
                     @endauth
-                </div>
+                </nav>
 
-                {{-- Mobile hamburger --}}
-                <button @click="open = !open" class="md:hidden p-2 rounded-md hover:bg-gray-800 transition" aria-label="Toggle menu">
-                    <svg x-show="!open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                    </svg>
-                    <svg x-show="open" x-cloak class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+                <!-- Mobile hamburger -->
+                <button @click="open = !open" class="md:hidden p-2 text-black" x-data="{ open: false }">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
             </div>
         </div>
-
-        {{-- Mobile menu --}}
-        <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" class="md:hidden border-t border-gray-700 bg-gray-900">
-            <div class="px-4 py-3 space-y-2">
-                <a href="/" class="block text-sm {{ request()->is('/') ? 'text-white font-semibold' : 'text-gray-300 hover:text-white' }} py-2 transition">Home</a>
-                @auth
-                    @if (Auth::user()->hasAdminPanelAccess())
-                        <a href="/admin" class="block text-sm text-amber-300 hover:text-amber-200 py-2 transition">Admin Panel</a>
-                    @endif
-                    <a href="/dashboard" class="block text-sm {{ request()->is('dashboard') ? 'text-white font-semibold' : 'text-gray-300 hover:text-white' }} py-2 transition">My Bookings</a>
-                    <a href="/profile" class="block text-sm {{ request()->is('profile') ? 'text-white font-semibold' : 'text-gray-300 hover:text-white' }} py-2 transition">
-                        Profile ({{ Auth::user()->name }})
-                    </a>
-                    <form method="POST" action="/logout">
-                        @csrf
-                        <button type="submit" class="block w-full text-left text-sm text-gray-300 hover:text-white py-2 transition">Logout</button>
-                    </form>
-                @else
-                    <a href="/login" class="block text-sm {{ request()->is('login') ? 'text-white font-semibold' : 'text-gray-300 hover:text-white' }} py-2 transition">Login</a>
-                    <a href="/register" class="block text-sm {{ request()->is('register') ? 'text-white font-semibold' : 'text-gray-300 hover:text-white' }} py-2 transition">Register</a>
-                @endauth
-            </div>
-        </div>
-    </nav>
+    </header>
 
     <main class="flex-1">
         {{ $slot }}
     </main>
 
-    <footer class="bg-gray-900 text-gray-400 py-8">
-        <div class="max-w-7xl mx-auto px-4 text-center text-sm">
-            &copy; {{ date('Y') }} Sport-Manager. All rights reserved.
-        </div>
-    </footer>
-
     @livewireScripts
-
-    <style>[x-cloak] { display: none !important; }</style>
-
-    <script>
-        // Auto-dismiss flash messages after 4 seconds
-        function attachAutoHide(root) {
-            root.querySelectorAll('.flash-message:not([data-auto-hide])').forEach(el => {
-                el.setAttribute('data-auto-hide', '1');
-                setTimeout(() => {
-                    el.style.transition = 'opacity 0.5s ease';
-                    el.style.opacity = '0';
-                    setTimeout(() => el.remove(), 500);
-                }, 4000);
-            });
-        }
-        document.addEventListener('DOMContentLoaded', () => attachAutoHide(document));
-        document.addEventListener('livewire:navigated', () => attachAutoHide(document));
-        const _flashObserver = new MutationObserver(mutations => {
-            mutations.forEach(m => m.addedNodes.forEach(n => {
-                if (n.nodeType === 1) attachAutoHide(n.parentElement || n);
-            }));
-        });
-        document.addEventListener('DOMContentLoaded', () => {
-            _flashObserver.observe(document.body, { childList: true, subtree: true });
-        });
-    </script>
-
     @stack('scripts')
 </body>
 </html>

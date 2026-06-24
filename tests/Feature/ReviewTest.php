@@ -207,5 +207,3 @@ class ReviewTest extends TestCase
         $this->assertSame('Excellent facility.', $review->comment);
     }
 }
-
-
