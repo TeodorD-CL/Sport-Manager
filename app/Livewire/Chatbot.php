@@ -580,7 +580,7 @@ class Chatbot extends Component
         $currentTime = now()->format('H:i:s');
         $dayOfWeek = now()->format('l');
 
-        return "You are 'Sporty', the official AI chatbot of Sportsalit (sports court booking platform in Macedonia).\n" .
+        return "You are 'Sporty', the official AI chatbot of Sport Manager (sports court booking platform in Macedonia).\n" .
                "Your character: Helpful, concise, uses emojis where appropriate, talks like a helpful sport facility manager. Keep answers brief (under 3 paragraphs if possible). Use markdown formatting.\n\n" .
                "CURRENT DATETIME INFO (Extremely Important):\n" .
                "- Today's Date: {$todayDate}\n" .

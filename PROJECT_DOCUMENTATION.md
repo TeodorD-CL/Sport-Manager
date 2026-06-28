@@ -1,314 +1,204 @@
-# Sport Manager Project Documentation
+# Sport Manager Technical Documentation
 
-Sport Manager is a sports facility booking platform for courts and sports venues in Macedonia. Users can search facilities, view court availability, book time slots, add equipment rentals, manage their bookings, and leave reviews after visiting a facility. Administrators and facility managers use a Filament admin panel to manage facilities, courts, rentals, bookings, reviews, amenities, and schedules.
+## 1. Project Overview
 
-The project is built with Laravel 11, Livewire 3, Blade, Tailwind CSS via CDN, Filament v3, Spatie permissions, and SQLite by default.
+Sport Manager is a Laravel-based web application for booking sports facilities in North Macedonia. The application lets visitors browse sports venues, filter by city and sport type, check hourly court availability, create bookings, add optional equipment rentals, manage their reservations, and leave reviews after they have used a facility.
 
-## Table of Contents
+The project also includes an administration panel for platform administrators and facility managers. Administrators can manage the whole system, while facility managers are restricted to the facilities assigned to them.
 
-- [Main Features](#main-features)
-- [Technology Stack](#technology-stack)
-- [Requirements](#requirements)
-- [Run with Docker](#run-with-docker)
-- [Run Locally](#run-locally)
-- [Seeded Login Accounts](#seeded-login-accounts)
-- [Application Routes](#application-routes)
-- [User Booking Flow](#user-booking-flow)
-- [Admin Panel](#admin-panel)
-- [Roles and Permissions](#roles-and-permissions)
-- [Data Model](#data-model)
-- [Pricing Rules](#pricing-rules)
-- [Booking Rules](#booking-rules)
-- [Review Rules](#review-rules)
-- [Project Structure](#project-structure)
-- [Testing](#testing)
-- [Deployment Notes](#deployment-notes)
-- [Troubleshooting](#troubleshooting)
-- [Contributor Notes](#contributor-notes)
+The application is built as a traditional Laravel application with server-rendered Blade views and interactive Livewire components. There is no separate JavaScript SPA frontend. The public interface is mostly Livewire 3, Blade, Tailwind CSS through CDN, and a small amount of Alpine.js-style behavior inside Blade templates.
 
-## Main Features
+## 2. Main User Roles
 
-### Public and user-facing features
+The application has three practical user types:
 
-- Search sports facilities by city, sport type, date, amenities, rating, review count, and price.
-- View each facility with its description, location, amenities, courts, prices, reviews, and available hourly slots.
-- Book courts in one-hour increments based on each facility's opening and closing hours.
-- Prevent past bookings and duplicate bookings for the same court and time slot.
-- Add suitable equipment rentals during booking.
-- Calculate total price before booking confirmation.
-- Generate a QR code identifier for each booking.
-- View upcoming and past bookings from the user dashboard.
-- Cancel bookings more than 24 hours before the start time.
-- Leave one review per facility after making a non-cancelled booking there.
+| Role | Purpose | Access |
+| --- | --- | --- |
+| `super_admin` | Platform administrator | Full access to the Filament admin panel and all resources |
+| `facility_manager` | Manager of one or more assigned facilities | Admin panel access only after at least one facility is assigned; scoped to assigned facilities |
+| `user` | Normal customer | Public browsing, booking, profile, dashboard, cancellation, and reviews |
 
-### Admin features
+There is also a `panel_user` role created by the seeder for compatibility with Filament Shield conventions, but new self-registered customers are assigned only the `user` role.
 
-- Filament admin dashboard at `/admin`.
-- Manage facilities, courts, bookings, reviews, rentals, and amenities.
-- Set facility opening and closing hours.
-- Assign facility managers to specific facilities.
-- Restrict facility managers to only the facilities they manage.
-- Review user feedback from the admin panel.
-- Use calendar-style booking views through the Filament FullCalendar plugin.
+## 3. Technology Stack
 
-## Technology Stack
-
-| Area | Technology |
+| Layer | Technology |
 | --- | --- |
 | Backend framework | Laravel 11 |
-| PHP version | PHP 8.2 |
-| Frontend | Livewire 3, Blade, Tailwind CSS CDN |
+| PHP runtime | PHP 8.2 |
+| Frontend rendering | Blade templates |
+| Frontend interactivity | Livewire 3 |
+| Styling | Tailwind CSS CDN in the main layout |
 | Admin panel | Filament v3 |
-| Authorization | Spatie Laravel Permission, Filament Shield |
-| Media handling | Spatie Laravel MediaLibrary |
-| Calendar | Saade Filament FullCalendar |
+| Admin permissions | Spatie Laravel Permission and Filament Shield |
+| Calendar plugin | Saade Filament FullCalendar |
+| Media package | Spatie Laravel MediaLibrary |
 | QR codes | SimpleSoftwareIO Simple QRCode |
-| Default database | SQLite |
+| AI assistant integration | Gemini API, optional through `GEMINI_API_KEY` |
+| Local/Docker database in current config | PostgreSQL |
 | Test database | In-memory SQLite |
-| Queue, cache, session defaults | Database drivers |
+| Queue/cache/session defaults | Database drivers in `.env.example`, overridden to array/sync during tests |
 
-Tailwind CSS is loaded through CDN in the main Blade layout, so the public frontend does not require a Vite build step.
+Important note: older project notes mention SQLite as the default database. In the current checked-in configuration, `.env.example` and `docker-compose.yml` use PostgreSQL. SQLite is still supported by the code and is used for automated tests through `phpunit.xml`.
 
-## Requirements
+## 4. Repository Structure
 
-For local development without Docker:
-
-- PHP 8.2 or newer
-- Composer 2.x
-- SQLite support for PHP
-- Git
-
-Recommended PHP extensions:
-
-- `sqlite3`
-- `mbstring`
-- `xml`
-- `curl`
-- `fileinfo`
-- `gd`
-
-Node.js is only needed if you plan to work on compiled frontend assets. The main public UI uses Tailwind through CDN.
-
-## Run with Docker
-
-Docker is the recommended way to run the project because the container bootstraps most of the environment automatically.
-
-```bash
-docker-compose up --build
-```
-
-The Docker entrypoint:
-
-- Creates `.env` from `.env.example` if needed.
-- Generates `APP_KEY` if missing.
-- Creates the SQLite database file.
-- Runs migrations on container start.
-
-After the app is running, seed sample data:
-
-```bash
-docker-compose exec app php artisan db:seed
-```
-
-Open the app:
-
-- Frontend: `http://localhost:8000`
-- Admin panel: `http://localhost:8000/admin`
-
-Run tests in Docker:
-
-```bash
-docker-compose exec app php artisan test
-```
-
-## Run Locally
-
-Install dependencies:
-
-```bash
-composer install
-```
-
-Create the environment file:
-
-```bash
-cp .env.example .env
-php artisan key:generate
-```
-
-Create the SQLite database file:
-
-```bash
-touch database/database.sqlite
-```
-
-Run migrations and seed sample data:
-
-```bash
-php artisan migrate --seed
-```
-
-Start the app:
-
-```bash
-php artisan serve
-```
-
-Open:
+The important folders and files are:
 
 ```text
-http://localhost:8000
+app/
+  Filament/Resources/                 Admin CRUD resources
+  Http/Controllers/AuthController.php  Custom login, register, logout controller
+  Http/Middleware/EnsureUserIsAdmin.php
+  Livewire/                           Public interactive components
+  Models/                             Eloquent models
+  Policies/RolePolicy.php             Spatie Role policy used by admin permissions
+  Providers/Filament/AdminPanelProvider.php
+
+bootstrap/
+  app.php                             Laravel 11 app bootstrap
+
+config/
+  app.php
+  auth.php                            Web and admin session guards
+  database.php
+  services.php                        Includes Gemini API key configuration
+
+database/
+  migrations/                         Database schema
+  seeders/DatabaseSeeder.php          Demo users, roles, facilities, courts, rentals, reviews
+
+docker/
+  entrypoint.sh                       Container bootstrap script
+
+public/
+  images/                             Static facility/court images
+  css/ and js/filament/               Published Filament assets
+
+resources/
+  views/components/layouts/app.blade.php
+  views/livewire/                     Livewire component views
+  views/auth/                         Login and registration pages
+
+routes/
+  web.php                             Public and authenticated web routes
+
+tests/
+  Feature/                            Booking, review, auth, admin, chatbot tests
+  Unit/BookingPriceTest.php           Pricing unit tests
 ```
 
-The project also includes a Composer dev script:
+## 5. Application Routing
 
-```bash
-composer run dev
-```
+Routes are defined in `routes/web.php`.
 
-That script starts the Laravel server, queue listener, logs, and Vite process together. For the public-facing Blade and Livewire UI, `php artisan serve` is usually enough.
-
-## Seeded Login Accounts
-
-After running the database seeder, these accounts are available:
-
-| Role | Email | Password | Access |
+| Method | URL | Handler | Access |
 | --- | --- | --- | --- |
-| `super_admin` | `admin@test.com` | `password` | Full admin access |
-| `facility_manager` | `manager@test.com` | `password` | Admin access for assigned facilities |
-| `user` | `user@test.com` | `password` | Frontend booking access |
+| GET | `/` | `App\Livewire\SearchFacilities` | Public |
+| GET | `/facility/{id}` | `App\Livewire\FacilityDetail` | Public |
+| GET | `/login` | `AuthController@showLogin` | Public |
+| POST | `/login` | `AuthController@login` | Public, throttled to 6 attempts per minute |
+| GET | `/register` | `AuthController@showRegister` | Public |
+| POST | `/register` | `AuthController@register` | Public |
+| POST | `/logout` | `AuthController@logout` | Authenticated form action |
+| GET | `/dashboard` | `App\Livewire\UserDashboard` | Authenticated |
+| GET | `/profile` | `App\Livewire\UserProfile` | Authenticated |
+| GET | `/admin` | Filament admin panel | Admin guard and role checks |
 
-The seeded facility manager is assigned to Central Sports Hall and Tetovo Sports Complex.
+The Filament admin panel route is configured in `app/Providers/Filament/AdminPanelProvider.php` with `path('admin')`.
 
-Newly registered users receive the `user` role. They can book courts on the frontend but cannot access the admin panel.
+## 6. Authentication and Authorization
 
-## Application Routes
+### Public Authentication
 
-| URL | Handler | Authentication |
-| --- | --- | --- |
-| `/` | `SearchFacilities` Livewire component | Public |
-| `/facility/{id}` | `FacilityDetail` Livewire component | Public |
-| `/login` | `AuthController@showLogin` | Public |
-| `POST /login` | `AuthController@login` | Public, throttled |
-| `/register` | `AuthController@showRegister` | Public |
-| `POST /register` | `AuthController@register` | Public |
-| `POST /logout` | `AuthController@logout` | Authenticated |
-| `/dashboard` | `UserDashboard` Livewire component | Authenticated |
-| `/profile` | `UserProfile` Livewire component | Authenticated |
-| `/admin` | Filament admin panel | Admin role required |
+Authentication is handled by `app/Http/Controllers/AuthController.php`.
 
-Login attempts are throttled at 6 attempts per minute.
+Login flow:
 
-## User Booking Flow
+1. User submits email, password, and optional remember flag to `POST /login`.
+2. The controller validates email and password.
+3. `Auth::attempt()` checks credentials.
+4. On success the session is regenerated and the user is redirected to the intended page or `/`.
+5. On failure the form returns with a validation error.
 
-1. The user opens the homepage at `/`.
-2. The user searches or filters facilities by city, court type, date, amenities, rating, reviews, or price.
-3. The user opens a facility page.
-4. The facility page shows courts and one-hour availability slots based on the facility schedule.
-5. Past slots are shown as unavailable.
-6. The user selects an available slot.
-7. If the user is not logged in, booking confirmation redirects to login.
-8. The user can select suitable rentals for the selected sport type.
-9. The app calculates the total price.
-10. The user confirms the booking.
-11. The booking is created with status `confirmed` and a UUID QR code value.
-12. The user is redirected to the dashboard.
+Registration flow:
 
-The booking confirmation runs inside a database transaction and checks the selected slot with a lock to reduce the risk of double booking.
+1. User submits name, email, optional phone, password, and password confirmation.
+2. The controller validates uniqueness of email and minimum password length.
+3. The user is created.
+4. The `user` role is created if missing and assigned to the user.
+5. The user is logged in immediately and redirected to `/`.
 
-## Admin Panel
+Logout flow:
 
-The admin panel is available at:
+1. The user submits a POST form to `/logout`.
+2. Laravel logs the user out.
+3. The session is invalidated and CSRF token is regenerated.
+4. The user is redirected to `/`.
 
-```text
-/admin
-```
+### Admin Guard
 
-It uses Filament v3 with Amber as the primary color.
+`config/auth.php` defines two session guards:
 
-Admin resources live in:
+- `web`
+- `admin`
 
-```text
-app/Filament/Resources
-```
+Both use the same `users` provider and `App\Models\User` model. Filament is configured to use the `admin` guard.
 
-Main resources include:
+### Admin Access Rules
 
-- Amenity
-- Booking
-- Court
-- Facility
-- Rental
-- Review
+Admin panel access is decided by `User::canAccessPanel()` and `User::hasAdminPanelAccess()`.
 
-Facility assignments are managed from the Facility resource through the Facility Managers relation tab. Only super admins can assign or remove facility managers.
+A user can access `/admin` when:
 
-## Roles and Permissions
+- they have the `super_admin` role, or
+- they have the `facility_manager` role and are assigned to at least one facility.
 
-### `super_admin`
+Regular users and unassigned facility managers cannot use the admin panel.
 
-Super admins have full administrative access. They can:
+The middleware `EnsureUserIsAdmin` adds a second check for authenticated admin-guard users. If an authenticated admin user lacks admin panel access, the middleware aborts with HTTP 403.
 
-- Access `/admin`.
-- Create and manage all facilities.
-- Manage courts, bookings, rentals, amenities, and reviews.
-- Assign facility managers to facilities.
-- Manage global admin data.
+## 7. Data Model
 
-### `facility_manager`
+Most business models use UUID primary keys through Laravel's `HasUuids` trait. The exception is `User`, which uses Laravel's default auto-incrementing integer ID.
 
-Facility managers can access `/admin` only if they are assigned to at least one facility.
+### Users
 
-They can:
+Model: `App\Models\User`
 
-- View and manage only their assigned facilities.
-- Manage courts for their assigned facilities.
-- Manage bookings connected to their assigned facilities.
-- Manage rentals for their assigned facilities.
-- Update facility schedule fields such as `opening_hour` and `closing_hour`.
-- View reviews for their assigned facilities.
+Main fields:
 
-They cannot:
-
-- Manage global amenities.
-- Create new facilities.
-- Assign facility managers.
-- Edit or delete reviews.
-- Access facilities they do not manage.
-
-### `user`
-
-Regular users can:
-
-- Search facilities.
-- Book courts.
-- View their dashboard.
-- Cancel eligible bookings.
-- Leave reviews after a valid booking.
-
-Regular users cannot access `/admin`.
-
-## Data Model
-
-Most application models use UUID primary keys. The `User` model uses the standard bigint primary key.
-
-### User
-
-Represents a registered account.
+- `id`
+- `name`
+- `email`
+- `phone`
+- `password`
+- `email_verified_at`
+- timestamps
 
 Relationships:
 
-- Has many bookings.
-- Has many reviews.
-- Belongs to many managed facilities for facility managers.
-- Uses Spatie roles.
+- `bookings()` has many bookings
+- `reviews()` has many reviews
+- `managedFacilities()` belongs to many facilities through `facility_user`
+- `facilities()` aliases `managedFacilities()` for Filament relation manager compatibility
 
-### Facility
+Important methods:
 
-Represents a sports venue.
+- `isSuperAdmin()`
+- `isFacilityManager()`
+- `hasAdminPanelAccess()`
+- `managedFacilityIds()`
+- `managesFacility(string $facilityId)`
+- `canAccessPanel(Panel $panel)`
 
-Important fields:
+### Facilities
 
+Model: `App\Models\Facility`
+
+Main fields:
+
+- `id` UUID
 - `name`
 - `description`
 - `city`
@@ -316,45 +206,59 @@ Important fields:
 - `image_path`
 - `opening_hour`
 - `closing_hour`
+- timestamps
 
 Relationships:
 
-- Has many courts.
-- Has many rentals.
-- Has many reviews.
-- Belongs to many amenities.
-- Belongs to many managers through `facility_user`.
+- `courts()` has many courts
+- `amenities()` belongs to many amenities
+- `reviews()` has many reviews
+- `rentals()` has many rentals
+- `managers()` belongs to many users through `facility_user`
 
-Computed values:
+Computed attributes:
 
-- Average rating.
-- Review count.
+- `averageRating`
+- `reviewCount`
+- `lowestPriceFormatted`
 
-### Court
+`averageRating` and `reviewCount` first use aggregate values loaded by `withAvg()` and `withCount()` when available. This avoids loading every review on the homepage. If aggregate attributes are missing, the model falls back to the loaded reviews collection.
 
-Represents a bookable sports court or area inside a facility.
+### Courts
 
-Important fields:
+Model: `App\Models\Court`
 
+Main fields:
+
+- `id` UUID
 - `facility_id`
 - `name`
 - `type`
 - `base_price_per_hour`
 - `image_path`
+- timestamps
 
-Supported court types:
+Supported court types in forms and UI:
 
-- Football
-- Tennis
-- Swimming
-- Padel
+- `Football`
+- `Tennis`
+- `Padel`
+- `Swimming`
 
-### Booking
+Relationships:
 
-Represents a user reservation for a court.
+- `facility()` belongs to facility
+- `bookings()` has many bookings
 
-Important fields:
+Prices are stored as integer cents/minor units. For example, `120000` is displayed as `1,200 MKD`.
 
+### Bookings
+
+Model: `App\Models\Booking`
+
+Main fields:
+
+- `id` UUID
 - `user_id`
 - `court_id`
 - `start_time`
@@ -362,8 +266,9 @@ Important fields:
 - `status`
 - `total_price`
 - `qr_code`
+- timestamps
 
-Statuses:
+Statuses used by the system:
 
 - `confirmed`
 - `cancelled`
@@ -372,153 +277,379 @@ Statuses:
 
 Relationships:
 
-- Belongs to a user.
-- Belongs to a court.
-- Belongs to many rentals with a pivot quantity.
+- `user()` belongs to user
+- `court()` belongs to court
+- `rentals()` belongs to many rentals with pivot field `quantity`
 
-### Rental
+Database constraints:
 
-Represents rentable equipment such as rackets, balls, towels, goggles, or shin guards.
+- `qr_code` is unique when present.
+- `court_id`, `start_time`, and `end_time` are unique together.
 
-Important fields:
+The unique booking constraint protects identical slots. The application also checks for overlapping bookings in code so that overlapping time windows are blocked, not only identical start/end combinations.
 
-- `facility_id`
+### Rentals
+
+Model: `App\Models\Rental`
+
+Main fields:
+
+- `id` UUID
+- `facility_id`, nullable for legacy/global rental records
 - `name`
 - `price`
-- `suitable_for`
+- `suitable_for`, JSON array
+- timestamps
 
-The `suitable_for` field is a JSON array of court types. If it is empty or null, the rental is treated as suitable for all court types.
+Relationships:
 
-### Amenity
+- `facility()` belongs to facility
+- `bookings()` belongs to many bookings with pivot `quantity`
 
-Represents a facility feature such as parking, wifi, showers, lockers, or cafe.
+`Rental::isSuitableFor(string $courtType)` returns true when:
 
-Important fields:
+- `suitable_for` is empty or null, meaning the rental is universal, or
+- the given court type exists in `suitable_for`.
 
+### Amenities
+
+Model: `App\Models\Amenity`
+
+Main fields:
+
+- `id` UUID
 - `name`
 - `icon`
+- timestamps
 
-### Review
+Relationships:
 
-Represents a user review for a facility.
+- `facilities()` belongs to many facilities through `amenity_facility`
 
-Important fields:
+The `icon` field stores a Heroicon name such as `heroicon-o-wifi`.
 
+### Reviews
+
+Model: `App\Models\Review`
+
+Main fields:
+
+- `id` UUID
 - `user_id`
 - `facility_id`
 - `rating`
 - `comment`
+- timestamps
 
-Rules:
+Relationships:
 
-- Rating must be an integer from 1 to 5.
-- Comment is optional and limited to 1000 characters.
-- A database unique constraint prevents duplicate reviews by the same user for the same facility.
+- `user()` belongs to user
+- `facility()` belongs to facility
 
-## Pricing Rules
+Database rule:
 
-Booking prices are calculated by `Booking::calculatePrice()`.
+- A user can have only one review per facility because `reviews` has a unique constraint on `user_id` and `facility_id`.
 
-The total is based on:
+## 8. Database Tables and Relationships
 
-- Court base price per hour.
-- Number of booked hours.
-- Peak-hour surcharge.
-- Weekend surcharge.
-- Selected rentals.
+The main business tables are:
 
-Rules:
+| Table | Purpose |
+| --- | --- |
+| `users` | Application users |
+| `facilities` | Sports venues |
+| `courts` | Bookable courts/pools/pitches inside facilities |
+| `bookings` | User reservations |
+| `rentals` | Equipment or extras |
+| `booking_rental` | Rental selections for a booking, including quantity |
+| `amenities` | Facility features like parking, Wi-Fi, lockers |
+| `amenity_facility` | Many-to-many connection between amenities and facilities |
+| `reviews` | User reviews for facilities |
+| `facility_user` | Facility manager assignments |
+| `roles`, `permissions`, etc. | Spatie permission tables |
+| `media` | Spatie MediaLibrary table |
+| `jobs`, `cache`, `sessions` | Laravel infrastructure tables |
 
-- The minimum charged duration is 1 hour.
-- `end_time` must be after `start_time`.
-- Peak hours are 18:00 through 21:59.
-- Peak bookings receive a 20 percent surcharge.
-- Weekend bookings receive a 10 percent surcharge.
-- Surcharges stack. Peak is applied first, then weekend.
-- Rental prices are added after court pricing.
+High-level relationship diagram:
 
-Prices are stored as integers in Macedonian denar minor units. Displayed prices are formatted by dividing by 100 and appending `MKD`.
+```text
+User
+  has many Booking
+  has many Review
+  belongs to many Facility as managedFacilities
+
+Facility
+  has many Court
+  has many Rental
+  has many Review
+  belongs to many Amenity
+  belongs to many User as managers
+
+Court
+  belongs to Facility
+  has many Booking
+
+Booking
+  belongs to User
+  belongs to Court
+  belongs to many Rental with quantity
+
+Rental
+  belongs to Facility, nullable
+  belongs to many Booking with quantity
+
+Review
+  belongs to User
+  belongs to Facility
+```
+
+## 9. Pricing Logic
+
+Pricing is implemented in `Booking::calculatePrice(Court $court, $startTime, $endTime, array $rentals = [])`.
+
+The algorithm:
+
+1. Parse start and end times with Carbon.
+2. Reject invalid ranges where `end_time <= start_time`.
+3. Calculate the number of hours using `diffInHours`.
+4. Enforce a minimum of one charged hour.
+5. Multiply court base price by the number of hours.
+6. Apply a 20% peak-hour surcharge if the start hour is from 18:00 through 21:59.
+7. Apply a 10% weekend surcharge if the start date is Saturday or Sunday.
+8. Load selected rentals in one `whereIn` query.
+9. Add `rental.price * quantity` for each valid rental.
+10. Return the rounded integer total.
+
+Surcharges stack in this order:
+
+```text
+base price -> peak surcharge -> weekend surcharge -> rentals
+```
 
 Example:
 
 ```text
-120000 = 1,200 MKD
+Court price: 100 MKD/hour
+Time: Saturday 18:00-19:00
+Base: 100
+Peak +20%: 120
+Weekend +10%: 132
+Final: 132 MKD, before rentals
 ```
 
-## Booking Rules
+Internally this would be stored as `13200`.
 
-- Slots are generated in one-hour increments.
-- Facility schedules define the first and last bookable hours.
-- Default schedule values are typically 08:00 to 22:00.
-- Past slots are unavailable.
-- Users cannot confirm bookings in the past.
+## 10. Booking Rules
+
+The main booking flow lives in `App\Livewire\FacilityDetail`.
+
+Rules enforced by the UI and backend:
+
+- Slots are one hour long.
+- Slots are generated between each facility's `opening_hour` and `closing_hour`.
+- Default schedule is 08:00-22:00.
+- Past slots are displayed as unavailable.
+- A user cannot confirm a booking in the past.
+- A booking must be inside the facility schedule.
 - Cancelled bookings no longer block availability.
 - Non-cancelled bookings block overlapping slots.
-- A user can cancel only if the booking starts more than 24 hours in the future.
-- Duplicate slot booking is blocked during confirmation.
+- Booking confirmation requires authentication.
+- Confirmed bookings get a generated UUID string in `qr_code`.
+- Optional rentals can be attached during booking.
 
-## Review Rules
+Double-booking protection:
 
-Users can review a facility only when:
-
-- They are authenticated.
-- They have at least one non-cancelled booking at that facility.
-- They have not already reviewed that facility.
-
-After a review is submitted:
-
-- The review is saved.
-- A `reviewSubmitted` Livewire event is dispatched.
-- The facility detail page reloads reviews live.
-
-## Project Structure
+1. `confirmBooking()` wraps the creation in `DB::transaction()`.
+2. Inside the transaction, it queries existing non-cancelled bookings for the selected court.
+3. It checks overlap using:
 
 ```text
-app/
-  Http/Controllers/AuthController.php
-  Livewire/
-    SearchFacilities.php
-    FacilityDetail.php
-    UserDashboard.php
-    UserProfile.php
-    LeaveReview.php
-  Models/
-    Amenity.php
-    Booking.php
-    Court.php
-    Facility.php
-    Rental.php
-    Review.php
-    User.php
-  Filament/Resources/
-  Providers/Filament/AdminPanelProvider.php
-
-resources/
-  views/components/layouts/app.blade.php
-  views/livewire/
-  views/auth/
-
-database/
-  migrations/
-  seeders/DatabaseSeeder.php
-
-routes/
-  web.php
-
-tests/
-  Feature/
-  Unit/
-
-docker/
-  entrypoint.sh
-
-Dockerfile
-docker-compose.yml
-composer.json
-phpunit.xml
+existing.start_time < requested.end_time
+existing.end_time > requested.start_time
 ```
 
-The canonical app layout is:
+4. The query uses `lockForUpdate()`.
+5. If an overlap exists, the booking is rejected and the UI reloads availability.
+
+On PostgreSQL/MySQL this gives row-level locking behavior. In SQLite tests, the transaction serializes writes enough for the tested behavior.
+
+## 11. Cancellation Rules
+
+Cancellation is implemented in `App\Livewire\UserDashboard::cancelBooking()`.
+
+A booking can be cancelled only when:
+
+- the booking belongs to the authenticated user,
+- the booking status is `confirmed`, and
+- the start time is more than 24 hours in the future.
+
+If the booking is inside the 24-hour window, it remains confirmed and the user sees an error message.
+
+Cancelled bookings appear under the dashboard's past/history tab because they are no longer active upcoming reservations.
+
+## 12. Review Rules
+
+Reviews are handled by `App\Livewire\LeaveReview`.
+
+Rules:
+
+- The visitor must be logged in.
+- Rating is required and must be an integer from 1 to 5.
+- Comment is optional and limited to 1000 characters.
+- The user must have at least one non-cancelled booking at the facility.
+- The user can submit only one review per facility.
+
+Duplicate prevention happens in two places:
+
+- The Livewire component checks for an existing review before creating a new one.
+- The database enforces uniqueness on `user_id` and `facility_id`.
+
+After a review is saved, the component dispatches `reviewSubmitted`. `FacilityDetail` listens for that event and reloads the facility's `reviews.user` relationship so the new review appears without a full page refresh.
+
+## 13. Public Livewire Components
+
+### SearchFacilities
+
+File: `app/Livewire/SearchFacilities.php`
+
+URL: `/`
+
+Purpose:
+
+- Display the homepage facility search.
+- Filter by city, sport type, date, and amenities.
+- Sort by name, rating, review count, and price.
+- Paginate results.
+
+Important implementation details:
+
+- Uses Livewire URL-bound properties for filters:
+  - `city`
+  - `type`
+  - `date`
+  - `amenities`
+  - `sort`
+- Uses `withAvg('reviews', 'rating')` and `withCount('reviews')` instead of eager loading all reviews.
+- Date filtering checks whether each facility has courts with fewer than a full day of non-cancelled bookings.
+- Amenity filters are cumulative; selecting multiple amenities requires facilities to have all selected amenities.
+- Price sorting uses subqueries over `courts.base_price_per_hour`.
+
+### FacilityDetail
+
+File: `app/Livewire/FacilityDetail.php`
+
+URL: `/facility/{id}`
+
+Purpose:
+
+- Show one facility's details.
+- Show amenities, gallery images, reviews, and schedule.
+- Generate availability slots for each court.
+- Let authenticated users create bookings.
+- Let eligible authenticated users leave reviews.
+
+Important implementation details:
+
+- Loads `courts`, `amenities`, and `reviews.user` on mount.
+- Defaults selected date to today.
+- Loads all bookings for the day in one query and groups them by court.
+- Generates slots based on facility opening and closing hours.
+- Uses `firstWhere()` on the already-loaded courts collection instead of querying the selected court again.
+- Loads rentals for the facility, plus legacy/global rentals where `facility_id` is null.
+- Filters rentals by court type using `Rental::isSuitableFor()`.
+- Calculates the total whenever rentals are toggled.
+- Uses a transaction and row lock when confirming the booking.
+
+### UserDashboard
+
+File: `app/Livewire/UserDashboard.php`
+
+URL: `/dashboard`
+
+Purpose:
+
+- Show the authenticated user's bookings.
+- Separate upcoming bookings from past/cancelled bookings.
+- Render QR codes for booking check-in/reference.
+- Allow cancellation when the booking is more than 24 hours away.
+
+Important implementation details:
+
+- Loads bookings with `court.facility`.
+- Upcoming bookings are non-cancelled and start in the future.
+- Past/history bookings include bookings whose start time has passed or whose status is cancelled.
+- QR codes are rendered in the Blade view with Simple QRCode using the booking's `qr_code` field.
+
+### UserProfile
+
+File: `app/Livewire/UserProfile.php`
+
+URL: `/profile`
+
+Purpose:
+
+- Let the user edit name, email, and phone.
+- Let the user change password.
+- Show simple account statistics.
+
+Statistics shown:
+
+- total bookings
+- upcoming bookings
+- review count
+- favourite sport based on the user's non-cancelled bookings grouped by court type
+
+Password changes require the current password and confirmation of the new password.
+
+### LeaveReview
+
+File: `app/Livewire/LeaveReview.php`
+
+Purpose:
+
+- Embedded inside a facility detail page.
+- Validates and saves a review.
+- Prevents duplicate reviews.
+- Enforces that the user has a non-cancelled booking at the facility.
+
+### Chatbot
+
+Files:
+
+- `app/Livewire/Chatbot.php`
+- `resources/views/livewire/chatbot.blade.php`
+
+Purpose:
+
+- Provide a floating assistant named Sporty on public pages.
+- Answer basic questions in demo mode without an API key.
+- When a Gemini API key is configured, use AI responses with function-style calls to check availability and prepare bookings.
+
+Behavior:
+
+- The component is included globally in `resources/views/components/layouts/app.blade.php`.
+- It starts closed and can be toggled from a floating button.
+- It keeps a message list in Livewire state.
+- It supports preset suggestions for common questions.
+- It can create a pending booking proposal.
+- A logged-in user can confirm a pending booking directly from the chat.
+
+Gemini integration:
+
+- API key is read from `config('services.gemini.key')`, backed by `GEMINI_API_KEY`.
+- The request is sent to Google's Gemini generate content endpoint.
+- The system prompt includes current facilities, courts, rentals, user context, pricing rules, cancellation rules, and current local time.
+- The component exposes two internal tool-like functions to the AI flow:
+  - `checkAvailability`
+  - `prepareBooking`
+
+Demo mode:
+
+- If no API key exists, the component returns local canned/database-backed responses for keywords such as Padel, Tennis, Football, Swimming, and cancellation rules.
+
+## 14. Blade Layout and Frontend
+
+The canonical application layout is:
 
 ```text
 resources/views/components/layouts/app.blade.php
@@ -530,124 +661,392 @@ Livewire components reference it with:
 #[Layout('components.layouts.app')]
 ```
 
-Auth pages use it as:
+Auth views use it as:
 
 ```blade
 <x-layouts.app>
 ```
 
-Do not create a duplicate layout at `resources/views/layouts/app.blade.php`.
+The layout provides:
 
-## Testing
+- HTML document shell
+- responsive viewport metadata
+- CSRF metadata
+- Inter font from Google Fonts
+- Tailwind CSS from CDN
+- Flatpickr CSS and JavaScript from CDN
+- global navigation
+- Livewire styles/scripts
+- global chatbot component
 
-Run all tests locally:
+The public frontend does not require a Vite build because Tailwind is loaded through CDN. Vite and Node packages are still present for asset workflows and Laravel defaults, but the primary public UI can run through PHP/Laravel alone.
 
-```bash
-php artisan test
+## 15. Admin Panel
+
+The admin panel is configured in `app/Providers/Filament/AdminPanelProvider.php`.
+
+Configuration highlights:
+
+- route path: `/admin`
+- panel ID: `admin`
+- auth guard: `admin`
+- login enabled
+- primary color: Amber
+- resources discovered from `app/Filament/Resources`
+- dashboard pages/widgets enabled
+- custom "back to site" render hook
+- middleware includes `EnsureUserIsAdmin`
+- plugins:
+  - Filament Shield
+  - Filament FullCalendar
+
+### Admin Resources
+
+| Resource | Model | Super Admin | Facility Manager |
+| --- | --- | --- | --- |
+| AmenityResource | Amenity | Full CRUD | No access |
+| FacilityResource | Facility | Full CRUD | View/edit/delete assigned facilities only; cannot create new facilities |
+| CourtResource | Court | Full CRUD | Manage courts in assigned facilities |
+| BookingResource | Booking | Full CRUD | Manage bookings for courts in assigned facilities |
+| RentalResource | Rental | Full CRUD | Manage rentals for assigned facilities |
+| ReviewResource | Review | Full CRUD | Can view assigned facility reviews, but cannot create/edit/delete |
+
+Each scoped resource uses two layers of protection:
+
+1. `getEloquentQuery()` scopes what records appear in lists.
+2. `canCreate()`, `canEdit()`, and `canDelete()` enforce permissions on actions.
+
+Some create/edit page classes also validate submitted `facility_id` or `court_id` before saving. This protects against a manager manually submitting an ID outside their assigned facilities.
+
+### Facility Manager Assignment
+
+Facility manager assignment is handled by:
+
+```text
+app/Filament/Resources/FacilityResource/RelationManagers/ManagersRelationManager.php
 ```
 
-Run all tests in Docker:
+Only super admins can see the "Facility Managers" relation tab. The attach action only offers users who have the `facility_manager` role.
+
+## 16. Seed Data
+
+The main seeder is `database/seeders/DatabaseSeeder.php`.
+
+Seeded users:
+
+| Role | Email | Password | Notes |
+| --- | --- | --- | --- |
+| `super_admin` | `admin@test.com` | `password` | Full admin access |
+| `facility_manager` | `manager@test.com` | `password` | Assigned to Central Sports Hall and Tetovo Sports Complex |
+| `user` | `user@test.com` | `password` | Normal customer account |
+
+Seeded roles:
+
+- `super_admin`
+- `facility_manager`
+- `panel_user`
+- `user`
+
+Seeded amenities:
+
+- Parking
+- Wifi
+- Showers
+- Lockers
+- Cafe
+
+Seeded facilities:
+
+- Central Sports Hall, Skopje
+- Bitola Sports Arena, Bitola
+- Ohrid Aquatic Center, Ohrid
+- Tetovo Sports Complex, Tetovo
+- Prilep Professional Arena, Prilep
+
+Each seeded facility has multiple courts and six rentals:
+
+- Racket
+- Ball
+- Towel
+- Goggles
+- Swim Cap
+- Shin Guards
+
+The seeder also creates example reviews from the normal test user.
+
+## 17. Environment Configuration
+
+Important `.env` values:
+
+| Variable | Purpose |
+| --- | --- |
+| `APP_NAME` | Application display/config name |
+| `APP_ENV` | Environment name |
+| `APP_KEY` | Laravel encryption key |
+| `APP_DEBUG` | Enables debug output in development |
+| `APP_TIMEZONE` | Should be `Europe/Skopje` for correct local slot handling |
+| `APP_URL` | Base URL |
+| `DB_CONNECTION` | Current sample config uses `pgsql` |
+| `DB_HOST` | Database host |
+| `DB_PORT` | Database port |
+| `DB_DATABASE` | Database name |
+| `DB_USERNAME` | Database username |
+| `DB_PASSWORD` | Database password |
+| `SESSION_DRIVER` | Current sample config uses `database` |
+| `QUEUE_CONNECTION` | Current sample config uses `database` |
+| `CACHE_STORE` | Current sample config uses `database` |
+| `RUN_MIGRATIONS` | Docker entrypoint flag; defaults to true |
+| `RUN_SEED` | Docker entrypoint flag; defaults to false |
+| `GEMINI_API_KEY` | Optional API key for the AI chatbot |
+
+Timezone is especially important. If the app runs in UTC while users expect Europe/Skopje time, the system can misclassify local slots as past or future.
+
+## 18. Running the Project with Docker
+
+Docker is the easiest way to run the current project because it provides PHP and PostgreSQL.
+
+Start the application:
+
+```bash
+docker-compose up --build
+```
+
+Open:
+
+```text
+http://localhost:8000
+```
+
+Admin panel:
+
+```text
+http://localhost:8000/admin
+```
+
+Seed data after the app is running:
+
+```bash
+docker-compose exec app php artisan db:seed
+```
+
+Run tests:
 
 ```bash
 docker-compose exec app php artisan test
 ```
 
-The test suite uses in-memory SQLite through `phpunit.xml`, so tests do not touch the local development database.
+### Docker Services
 
-Important test coverage:
+`docker-compose.yml` defines:
 
-- Booking price calculations.
-- Minimum one-hour pricing.
-- Peak and weekend surcharges.
-- Booking cancellation window.
-- Rental pricing and quantities.
-- Duplicate slot prevention.
-- Past slot rejection.
-- Unauthenticated booking redirects.
-- Admin panel access rules.
-- Facility manager scoping.
-- Review and admin restrictions.
-- Facility schedule slot generation.
+| Service | Purpose |
+| --- | --- |
+| `app` | Laravel web app on port 8000 |
+| `queue` | Laravel queue worker |
+| `db` | PostgreSQL 15 Alpine |
 
-## Deployment Notes
+Volumes:
 
-The existing README includes Render deployment notes. The project is prepared for a Docker-based Render deployment with a web service, queue worker, and PostgreSQL database.
+- `vendor` keeps Composer dependencies from being overwritten by the host bind mount.
+- `pgdata` persists PostgreSQL data.
 
-General production reminders:
+### Docker Entrypoint
 
-- Use a real database such as PostgreSQL or MySQL instead of SQLite.
-- Set the same `APP_KEY` for the web and worker services.
-- Keep `APP_DEBUG=false`.
-- Configure `APP_URL` to the deployed domain.
-- Run migrations during deployment.
-- Seed demo data only when intentionally creating a demo environment.
-- Use a persistent storage strategy for uploaded files if media uploads are enabled.
+`docker/entrypoint.sh` does the following:
 
-## Troubleshooting
+1. Copies `.env.example` to `.env` if `.env` does not exist.
+2. Writes selected container environment variables into `.env`.
+3. Generates `APP_KEY` if missing.
+4. Creates SQLite database file only if `DB_CONNECTION=sqlite`.
+5. Sets storage/cache permissions.
+6. Runs migrations when `RUN_MIGRATIONS` is truthy.
+7. Runs seeders when `RUN_SEED` is truthy.
+8. Publishes Filament assets.
+9. Starts the requested command.
 
-### The app says the application key is missing
+## 19. Running Locally Without Docker
 
-Run:
+Local setup requires PHP 8.2, Composer, and a database.
+
+Install dependencies:
 
 ```bash
+composer install
+```
+
+Create environment:
+
+```bash
+cp .env.example .env
 php artisan key:generate
 ```
 
-### SQLite database file does not exist
+Configure database settings in `.env`.
 
-Run:
+For PostgreSQL, make sure these match your local database:
+
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=sport_manager
+DB_USERNAME=postgres
+DB_PASSWORD=secret
+```
+
+Run migrations and seeders:
 
 ```bash
-touch database/database.sqlite
 php artisan migrate --seed
 ```
 
-### Admin login works but `/admin` is forbidden
+Start the Laravel server:
 
-Make sure the user has one of these valid admin roles:
+```bash
+php artisan serve
+```
 
-- `super_admin`
-- `facility_manager` with at least one assigned facility
-
-Regular users and unassigned facility managers cannot access the admin panel.
-
-### A facility manager cannot see a facility
-
-Check that the manager is assigned to the facility through the Facility Managers relation in the Facility admin resource.
-
-### Slots are unavailable
-
-Check:
-
-- The selected date is not in the past.
-- The facility opening and closing hours are valid.
-- The court does not already have a non-cancelled booking at that time.
-
-### Public frontend styling is missing
-
-The public frontend uses Tailwind CSS from CDN in the Blade layout. Check the canonical layout:
+Open:
 
 ```text
-resources/views/components/layouts/app.blade.php
+http://localhost:8000
 ```
 
-### Tests fail because of a dirty local database
+The project also has a Composer development script:
 
-The automated tests should use in-memory SQLite. Confirm that `phpunit.xml` contains:
-
-```xml
-<env name="DB_CONNECTION" value="sqlite"/>
-<env name="DB_DATABASE" value=":memory:"/>
+```bash
+composer run dev
 ```
 
-## Contributor Notes
+That script starts the Laravel server, queue listener, log tailing, and Vite together through `concurrently`.
 
-- Keep frontend Blade components using the canonical app layout.
-- Prefer Livewire and existing Laravel patterns already used in the project.
-- Keep facility manager queries scoped to assigned facilities.
-- Use database transactions for booking confirmation logic.
-- Keep review rules enforced in both application logic and the database.
-- Do not eager-load the full reviews collection on the homepage just to show ratings. Use aggregate values such as `withAvg` and `withCount`.
-- Use `array_key_exists` when checking aggregate attributes that may intentionally be null.
-- Add tests for booking, pricing, authorization, or review behavior when changing those areas.
+## 20. Testing
 
+Tests are configured in `phpunit.xml`.
+
+Test environment settings:
+
+- `APP_ENV=testing`
+- `DB_CONNECTION=sqlite`
+- `DB_DATABASE=:memory:`
+- `CACHE_STORE=array`
+- `QUEUE_CONNECTION=sync`
+- `SESSION_DRIVER=array`
+- `BCRYPT_ROUNDS=4`
+
+This means automated tests do not touch the real development database.
+
+Run all tests:
+
+```bash
+php artisan test
+```
+
+Or in Docker:
+
+```bash
+docker-compose exec app php artisan test
+```
+
+### Test Coverage Summary
+
+| Test file | Coverage |
+| --- | --- |
+| `tests/Unit/BookingPriceTest.php` | Base price, minimum charge, multi-hour pricing, peak surcharge boundaries, weekend surcharge, stacked surcharges |
+| `tests/Feature/BookingTest.php` | Cancellation window, wrong-user cancellation protection, rental pricing, invalid times, authenticated booking, rental attachment, duplicate slot rejection, unauthenticated redirect, past slot rejection |
+| `tests/Feature/ReviewTest.php` | Review eligibility, cancelled booking rejection, duplicate review prevention, rating validation, comment length validation |
+| `tests/Feature/AuthRegistrationTest.php` | New users receive `user` role and not `panel_user` |
+| `tests/Feature/AdminAccessTest.php` | Admin access rules, manager scoping, amenity restriction, rental scoping, review read-only behavior, schedule-based slot generation |
+| `tests/Feature/ChatbotTest.php` | Chatbot rendering, toggling, suggestions, demo responses, markdown parsing, pending booking UI, pending booking confirmation |
+
+## 21. Deployment Notes
+
+The repository includes:
+
+- `Dockerfile`
+- `docker-compose.yml`
+- `render.yaml`
+
+The Dockerfile builds a PHP 8.2 CLI image, installs PHP extensions needed by Laravel and this app, installs Composer dependencies, optimizes autoloading, and starts Laravel through `php artisan serve`.
+
+For production-like deployment:
+
+1. Set a real `APP_KEY`.
+2. Set `APP_ENV=production`.
+3. Set `APP_DEBUG=false`.
+4. Configure a persistent database, preferably PostgreSQL based on the current Docker setup.
+5. Set `APP_TIMEZONE=Europe/Skopje`.
+6. Configure `APP_URL` to the deployed domain.
+7. Run migrations.
+8. Seed only if demo data is desired.
+9. Ensure a queue worker runs if queued jobs are used.
+10. Set `GEMINI_API_KEY` only if the AI chatbot should use the Gemini API.
+
+Because this project uses CDN-hosted Tailwind and Flatpickr in the public layout, there is no required public frontend build step for the main customer-facing pages.
+
+## 22. Security and Data Integrity Notes
+
+Important protections already present:
+
+- Passwords are hashed by Laravel.
+- Login is throttled at 6 attempts per minute.
+- Logout uses POST and CSRF protection.
+- Admin panel access is role-gated.
+- Facility managers are scoped at query and action levels.
+- Booking confirmation is transactional.
+- Booking overlap is checked before creation.
+- Review uniqueness is enforced by the database.
+- Users cannot cancel other users' bookings.
+- Users cannot review facilities without a non-cancelled booking.
+- Chatbot markdown rendering escapes user/bot text before applying limited formatting.
+
+Areas to be careful with in future changes:
+
+- Keep booking overlap checks whenever adding admin-side booking creation logic.
+- If allowing multi-hour bookings through the UI, update slot generation and pricing display together.
+- If switching database engines, re-test locking behavior in `confirmBooking()`.
+- If changing timezone settings, verify past/future slot behavior manually.
+- If expanding chatbot booking functionality, keep the same booking validation used by the normal booking flow.
+
+## 23. Known Limitations and Assumptions
+
+- Public bookings are currently one-hour slots only.
+- Rental selection in the facility booking modal uses quantity 1 for each selected rental.
+- The chatbot can create bookings without rentals.
+- The admin booking form lets admins edit fields directly; it does not fully reproduce the public booking validation UI.
+- Current Docker and `.env.example` use PostgreSQL, while some older project notes describe SQLite as the default.
+- The public frontend depends on external CDN access for Tailwind, Flatpickr, and Google Fonts.
+
+## 24. Suggested Demonstration Flow
+
+For a professor handoff or project demo:
+
+1. Start Docker with `docker-compose up --build`.
+2. Seed data with `docker-compose exec app php artisan db:seed`.
+3. Open `http://localhost:8000`.
+4. Search facilities by city and sport.
+5. Open a facility detail page.
+6. Pick a future date and available slot.
+7. Log in as `user@test.com` / `password`.
+8. Confirm a booking with an optional rental.
+9. Open `/dashboard` to show upcoming booking and QR code.
+10. Try cancellation with a booking more than 24 hours away.
+11. Visit the same facility and leave a review.
+12. Log in as `admin@test.com` / `password` and show full admin access.
+13. Log in as `manager@test.com` / `password` and show that admin records are scoped to assigned facilities.
+14. Open the chatbot and test demo-mode questions such as "Do you have Tennis courts?" or "What are the cancellation rules?"
+
+## 25. Maintenance Checklist
+
+Before handing in or deploying a fresh copy:
+
+- Run `php artisan test`.
+- Confirm `.env` has the correct database credentials.
+- Confirm `APP_TIMEZONE=Europe/Skopje`.
+- Confirm seeded credentials work if demo data is expected.
+- Confirm `/admin` blocks regular users.
+- Confirm future slots are bookable and past slots are disabled.
+- Confirm a duplicate booking attempt is rejected.
+- Confirm review submission works only after a non-cancelled booking.
+- Confirm static images under `public/images` load correctly.
+- Confirm `GEMINI_API_KEY` is blank for demo mode or valid for AI mode.
