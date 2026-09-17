@@ -91,7 +91,8 @@ class SearchFacilities extends Component
         }
 
         if (!empty($this->amenityFilters)) {
-            foreach ($this->amenityFilters as $amenityId) {
+            // Values come from the URL; ignore anything that is not a UUID so PostgreSQL does not throw.
+            foreach (array_filter($this->amenityFilters, [\Illuminate\Support\Str::class, 'isUuid']) as $amenityId) {
                 $query->whereHas('amenities', function ($q) use ($amenityId) {
                     $q->where('amenities.id', $amenityId);
                 });

@@ -75,7 +75,8 @@ class BookingResource extends Resource
                         'checked_in' => 'warning',
                         default => 'gray',
                     }),
-                Tables\Columns\TextColumn::make('total_price'),
+                Tables\Columns\TextColumn::make('total_price')
+                    ->formatStateUsing(fn ($state) => number_format($state / 100, 0) . ' MKD'),
             ])
             ->filters([])
             ->actions([

@@ -5,7 +5,6 @@ namespace App\Livewire;
 use App\Models\Booking;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 #[Layout('components.layouts.app')]
 class UserDashboard extends Component

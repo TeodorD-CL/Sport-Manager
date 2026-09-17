@@ -486,6 +486,13 @@ class Chatbot extends Component
         if ($start->isPast()) {
             return "Cannot book a time slot in the past.";
         }
+
+        $opening = (int) $court->facility->opening_hour;
+        $closing = (int) $court->facility->closing_hour;
+        $endHour = (int) $end->format('G') + ($end->format('i') === '00' ? 0 : 1);
+        if ($end <= $start || (int) $start->format('G') < $opening || $endHour > $closing || $endHour - (int) $start->format('G') !== 1 || $start->format('i') !== '00') {
+            return sprintf("Bookings are one-hour slots between %02d:00 and %02d:00.", $opening, $closing);
+        }
         
         // Check if already booked
         $isBooked = Booking::where('court_id', $courtId)

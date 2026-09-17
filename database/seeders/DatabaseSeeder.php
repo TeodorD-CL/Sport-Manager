@@ -9,7 +9,6 @@ use App\Models\Rental;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -112,12 +111,12 @@ class DatabaseSeeder extends Seeder
         Court::create(['facility_id' => $prilep->id, 'name' => 'Padel Arena', 'type' => 'Padel', 'base_price_per_hour' => 95000, 'image_path' => '/images/padel-court.jpg']);
 
         foreach ([$central, $bitola, $ohrid, $tetovo, $prilep] as $facility) {
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Racket', 'price' => 500, 'suitable_for' => ['Tennis', 'Padel']]);
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Ball', 'price' => 300, 'suitable_for' => ['Football']]);
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Towel', 'price' => 200, 'suitable_for' => ['Swimming', 'Tennis', 'Padel', 'Football']]);
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Goggles', 'price' => 400, 'suitable_for' => ['Swimming']]);
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Swim Cap', 'price' => 250, 'suitable_for' => ['Swimming']]);
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Shin Guards', 'price' => 350, 'suitable_for' => ['Football']]);
+            Rental::create(['facility_id' => $facility->id, 'name' => 'Racket', 'price' => 50000, 'suitable_for' => ['Tennis', 'Padel']]);
+            Rental::create(['facility_id' => $facility->id, 'name' => 'Ball', 'price' => 30000, 'suitable_for' => ['Football']]);
+            Rental::create(['facility_id' => $facility->id, 'name' => 'Towel', 'price' => 20000, 'suitable_for' => ['Swimming', 'Tennis', 'Padel', 'Football']]);
+            Rental::create(['facility_id' => $facility->id, 'name' => 'Goggles', 'price' => 40000, 'suitable_for' => ['Swimming']]);
+            Rental::create(['facility_id' => $facility->id, 'name' => 'Swim Cap', 'price' => 25000, 'suitable_for' => ['Swimming']]);
+            Rental::create(['facility_id' => $facility->id, 'name' => 'Shin Guards', 'price' => 35000, 'suitable_for' => ['Football']]);
         }
 
         $facilityManager->managedFacilities()->sync([$central->id, $tetovo->id]);

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sport Manager</title>
+<style>
+  @page { size: A4; margin: 22mm 20mm 24mm 20mm; @bottom-right { content: counter(page); font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 9pt; color: #666; } }
+  @page :first { @bottom-right { content: none; } }
+  :root {
+    --ink: #111;
+    --muted: #666;
+    --rule: #ddd;
+    --paper: #fff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.55;
+  }
+  h1, h2, h3 { font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; margin: 0; }
+  h1 { font-size: 30pt; margin-bottom: 6mm; }
+  h2 { font-size: 18pt; margin: 0 0 6mm 0; padding-bottom: 3mm; border-bottom: 1.5px solid var(--ink); }
+  h3 { font-size: 12.5pt; margin: 5.5mm 0 2mm 0; }
+  p { margin: 0 0 3.2mm 0; }
+  ul { margin: 0 0 4mm 0; padding-left: 5mm; }
+  li { margin-bottom: 1.5mm; }
+  .muted { color: var(--muted); }
+  .small { font-size: 9.5pt; }
+  .eyebrow { font-size: 8.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 4mm; }
+  .chapter { break-before: page; }
+  h2, h3 { break-after: avoid; }
+  .keep { break-inside: avoid; }
+  .pair { display: flex; gap: 5mm; align-items: flex-start; margin: 4mm 0 6mm 0; break-inside: avoid; }
+  .pair figure { flex: 1; min-width: 0; margin: 0; }
+  .pair figure img { max-height: none; width: 100%; }
+  figure { margin: 4mm 0 6mm 0; break-inside: avoid; }
+  figure img {
+    display: block; max-width: 100%; max-height: 98mm; width: auto; margin: 0 auto;
+    border: 1px solid var(--rule);
+  }
+  figcaption { font-size: 9pt; color: var(--muted); margin-top: 2.5mm; }
+  code, pre { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 9.5pt; }
+  code { background: #f3f3f1; padding: 0.2mm 1.2mm; }
+  pre { background: #f3f3f1; padding: 3.5mm 4mm; margin: 2mm 0 5mm 0; white-space: pre-wrap; }
+  .lede { font-size: 13pt; line-height: 1.5; max-width: 150mm; }
+  .cols { display: flex; gap: 8mm; }
+  .cols > div { flex: 1; }
+  .example { border-left: 2px solid var(--ink); padding: 1mm 0 1mm 5mm; margin: 4mm 0 5mm 0; }
+  .example p { margin-bottom: 1.5mm; }
+  .toc p { margin: 0 0 1.6mm 0; }
+  .toc .n { display: inline-block; width: 8mm; color: var(--muted); }
+  .toc p { display: flex; align-items: baseline; }
+  .toc .t { flex: 1; border-bottom: 1px dotted #ccc; margin: 0 3mm; height: 0.9em; }
+  .toc .t::before { content: attr(data-t); }
+  .toc .pg { color: var(--muted); }
+  svg text { font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  .cover { height: 250mm; display: flex; flex-direction: column; justify-content: space-between; }
+  .cover h1 { font-size: 44pt; margin: 0 0 6mm 0; }
+</style>
+</head>
+<body>
+
+<!-- ======================= COVER ======================= -->
+<div class="cover">
+  <div>
+    <div class="eyebrow">Product documentation</div>
+    <h1>Sport Manager</h1>
+    <p class="lede">A booking platform for sports facilities in North Macedonia. Players find a court and reserve it by the hour. Venues manage their courts, prices and schedule from one panel.</p>
+  </div>
+  <div class="small muted">
+    <p>Version 1.0 &nbsp;·&nbsp; September 2026</p>
+    <p>Web application built with Laravel, Livewire and Filament. All screenshots in this document are taken from the running application with its sample data.</p>
+  </div>
+</div>
+
+<!-- ======================= CONTENTS ======================= -->
+<div class="chapter toc">
+  <h2>Contents</h2>
+  <p><span class="n">1</span>What Sport Manager is<span class="t"></span><span class="pg">3</span></p>
+  <p><span class="n">2</span>Who uses it<span class="t"></span><span class="pg">4</span></p>
+  <p><span class="n">3</span>The player experience<span class="t"></span><span class="pg">5</span></p>
+  <p><span class="n">4</span>The facility manager experience<span class="t"></span><span class="pg">10</span></p>
+  <p><span class="n">5</span>The administrator experience<span class="t"></span><span class="pg">12</span></p>
+  <p><span class="n">6</span>Rules the system enforces<span class="t"></span><span class="pg">13</span></p>
+  <p><span class="n">7</span>How it is built<span class="t"></span><span class="pg">14</span></p>
+  <p><span class="n">8</span>Quality and security<span class="t"></span><span class="pg">16</span></p>
+  <p><span class="n">9</span>Running the application<span class="t"></span><span class="pg">17</span></p>
+  <p><span class="n">10</span>Limitations and next steps<span class="t"></span><span class="pg">18</span></p>
+</div>
+
+<!-- ======================= 1. WHAT IT IS ======================= -->
+<div class="chapter">
+  <h2>1. What Sport Manager is</h2>
+
+  <p>Renting a football pitch, a tennis court or a swimming lane in Macedonia today is a phone call. You call the venue, ask what is free, wait while someone checks a paper diary, and hope the slot is still open when you arrive. If the first venue is full, you call the next one. Venues have the mirror problem: a phone that rings all afternoon, a diary that only one person can see, and no way to show their availability to people who have never heard of them.</p>
+
+  <p>Sport Manager replaces the phone call. It is a web application with two faces.</p>
+
+  <p><strong>For players</strong> it is a public website. You choose a city, a sport and a date, see every venue that matches with its price per hour and rating, open one, and see an hour-by-hour grid of which courts are free. You pick a slot, add equipment if you need it, see the exact price, and confirm. The booking lands in your account with a QR code you show at the door. If plans change, you cancel from the same page, as long as it is more than a day in advance. Once you have a booking somewhere, you can rate the venue.</p>
+
+  <p><strong>For venues</strong> it is a management panel. A facility manager logs in and sees only their own venues. They set opening and closing hours, add and price their courts, keep a catalogue of rentable equipment, see every booking that comes in, and read the reviews players leave. A platform administrator sees everything across all venues and decides which manager is responsible for which facility.</p>
+
+  <p>Both faces run on the same data. When a player books a slot, it disappears from the grid for everyone else at that instant and appears in the manager's booking list. When a manager changes closing time from 22:00 to 23:00, the public grid grows by one row.</p>
+
+  <h3>What it does today</h3>
+  <ul>
+    <li>Search facilities by city, sport, date and amenities. Sort by rating, price or number of reviews.</li>
+    <li>Show real availability per court in one-hour slots, based on each venue's own opening hours.</li>
+    <li>Book a slot with optional equipment rentals and an itemised price that includes evening and weekend surcharges.</li>
+    <li>Give every booking a QR code and a personal dashboard for upcoming and past reservations.</li>
+    <li>Cancel with a 24-hour rule enforced by the system, not by a person.</li>
+    <li>Collect reviews only from people who have booked at that venue, one review per person per venue.</li>
+    <li>Offer a chat assistant, Sporty, that answers questions about courts, prices and rules and can prepare a booking from the conversation.</li>
+    <li>Give facility managers a scoped admin panel and platform administrators full control.</li>
+  </ul>
+
+  <p>The sample installation ships with five venues in Skopje, Bitola, Ohrid, Tetovo and Prilep, fifteen courts across football, tennis, padel and swimming, and a small rental catalogue. Everything in this document is shown with that data.</p>
+</div>
+
+<!-- ======================= 2. WHO USES IT ======================= -->
+<div class="chapter">
+  <h2>2. Who uses it</h2>
+
+  <h3>The player</h3>
+  <p>Anyone who wants to play. No account is needed to browse and check availability. An account is created in one step, with a name, email and password, the moment someone wants to actually reserve. Players see the public website only. They never see the admin panel and cannot reach it even if they know the address.</p>
+
+  <h3>The facility manager</h3>
+  <p>The person who runs one or more venues. They have an account on the same system, but with the manager role, and they use the admin panel at <code>/admin</code>. The panel shows them only the facilities an administrator has assigned to them. A manager of Central Sports Hall cannot see, edit or even list the courts and bookings of Bitola Sports Arena. This is enforced in every list and every save, not just hidden in the menu.</p>
+  <p>Managers can edit their facility's description, address, opening and closing hours and amenities. They can add, price and remove courts. They can manage the equipment rental catalogue for their venue. They see all bookings on their courts and can correct them if a player calls. They can read reviews but not alter or delete them.</p>
+
+  <h3>The platform administrator</h3>
+  <p>The operator of Sport Manager itself. Administrators see every venue, every court, every booking and every review. They are the only people who can create new facilities, manage the shared list of amenities, and assign managers to facilities. In practice, onboarding a new venue is an administrator task: create the facility, then assign the venue's staff member as its manager. From that point on the manager is self-sufficient.</p>
+
+  <h3>How the three fit together</h3>
+  <p>A player books, a manager fulfils, an administrator keeps the catalogue clean and decides who is responsible for what. Nothing a manager does can leak into another venue, and nothing a player does can touch the admin side. The rest of this document walks through each of those three experiences with the actual screens.</p>
+</div>
+
+<!-- ======================= 3. PLAYER ======================= -->
+<div class="chapter">
+  <h2>3. The player experience</h2>
+
+  <h3>Finding a venue</h3>
+  <p>The homepage is the search page. The three controls at the top are the ones people actually use: city, sport and date. Below them, amenity toggles narrow the list to venues with parking, showers, lockers, a cafe or Wi‑Fi, and a sort control reorders by rating, price or number of reviews. Every change updates the results immediately without a page reload. Each card shows the venue, its city, its main amenities, the average rating with the number of reviews behind it, and the lowest hourly price among its courts.</p>
+
+  <figure>
+    <img src="screenshots/01-home.png" alt="Homepage with search controls and five facility cards">
+    <figcaption>The homepage. Search by city, sport and date; filter by amenities; sort. Five sample venues are listed with their price from and rating.</figcaption>
+  </figure>
+</div>
+
+<div>
+  <p>Filters combine. Below, the search is narrowed to football in Skopje, sorted by price. The filter state lives in the page address, so a player can copy the link and send it to a friend, and the friend opens the same filtered view.</p>
+
+  <figure>
+    <img src="screenshots/02-search-filtered.png" alt="Search filtered to Football in Skopje">
+    <figcaption>Filtered search: Skopje, football, cheapest first. One venue matches.</figcaption>
+  </figure>
+
+  <h3>The facility page</h3>
+  <p>Opening a venue shows everything a player needs to decide: photos, a short description, the amenity list, the address and opening hours, existing reviews, and the availability grid. The grid is the heart of the page. Each court gets its own block with its sport and hourly price, and one button per hour between the venue's opening and closing time. Slots that have already passed today, or that someone else has booked, are greyed out and struck through. Changing the date at the top redraws the grid for that day.</p>
+</div>
+
+<div>
+  <figure>
+    <img src="screenshots/03-facility.png" alt="Facility detail page with availability grid and reviews">
+    <figcaption>Central Sports Hall. Three courts, each with its own hourly grid for the selected day. Morning slots are struck through because they are already in the past. Reviews are at the bottom.</figcaption>
+  </figure>
+</div>
+
+<div>
+  <h3>Booking a slot</h3>
+  <p>Clicking a free slot opens the confirmation panel. If the player is not signed in, confirming sends them to the sign‑in page; after signing in they return to the homepage and pick the slot again. The panel names the court, the date and the hour, then lists the equipment available for that sport at that venue. A football court offers a ball and shin guards, a pool offers goggles and a swim cap. Ticking an item adds it to the total straight away.</p>
+
+  <p>The price is itemised so there are no surprises. The base price is the court's hourly rate. Evening slots between 18:00 and 22:00 carry a twenty percent surcharge, weekend slots a further ten percent, and equipment is added on top. The example below is a Saturday at 18:00, so both surcharges apply.</p>
+
+  
+  <p>Pressing Confirm Reservation creates the booking. If two people try to take the same slot at the same moment, exactly one succeeds. The confirmation runs inside a database transaction that checks for overlapping bookings, and the database itself refuses a second booking with the same court and hour, so the loser is told the slot has just been taken.</p>
+</div>
+
+<div>
+  <h3>The dashboard</h3>
+  <p>After confirming, the player lands on their dashboard. Upcoming reservations are listed with the court, venue, date, time, total paid and status, and each has a QR code. The code is unique to the booking and is what the venue scans or reads at the door. A second tab holds past and cancelled bookings, so the history is never lost.</p>
+
+  <div class="pair"><figure>
+    <img style="max-height:82mm;width:auto" src="screenshots/05-booking-modal-crop.png" alt="Booking confirmation modal with itemised price">
+    <figcaption>Confirming a booking. Football Court A, Saturday 18:00. Base 1,200 MKD, peak +240, weekend +144, one ball +300. Total 1,884 MKD.</figcaption>
+  </figure><figure>
+    <img src="screenshots/06-dashboard.png" alt="User dashboard showing an upcoming booking with QR code">
+    <figcaption>The dashboard right after booking. The reservation is confirmed, the QR code is ready, and Cancel is available because the slot is more than 24 hours away.</figcaption>
+  </figure></div>
+
+  <p>The Cancel button is only offered when the booking starts more than 24 hours from now. Inside that window the button is gone, and even a direct attempt is refused with a clear message. Cancelled slots are released immediately and reappear in the grid for other players.</p>
+
+  <h3>Account settings</h3>
+  <p>The profile page lets a player change their name, email and phone number and set a new password. A password change requires the current password.</p>
+</div>
+
+<div>
+  
+  <h3>Leaving a review</h3>
+  <p>Reviews are gated on booking. The review form appears on a facility page only for a signed‑in player who has at least one booking at that venue that was not cancelled. An upcoming confirmed booking counts, so a player may review before the day of play. A player who never booked there does not see the form. A player who already reviewed the venue does not see it either; it is one review per person per venue, and the rule is enforced in the database as well as in the interface. The rating is one to five stars, the comment is optional. A posted review appears in the list immediately and the venue's average updates everywhere it is shown.</p>
+</div>
+
+<div>
+  <div class="pair"><figure>
+    <img src="screenshots/07-profile.png" alt="Profile settings page">
+    <figcaption>Profile settings. Contact details on top, password change below.</figcaption>
+  </figure><figure>
+    <img src="screenshots/08-review-form.png" alt="Write a review form on a facility page">
+    <figcaption>The review form on Tetovo Sports Complex, shown because this player has a completed booking there.</figcaption>
+  </figure></div>
+
+  <h3>Sporty, the assistant</h3>
+  <p>A chat button sits in the corner of every public page. Sporty answers questions in plain language: where can I play padel, what does a tennis court cost in Ohrid, what are the cancellation rules. It reads live data, so its answers reflect the current catalogue and prices. It can also check whether a specific court is free at a specific time and prepare a booking; a signed‑in player confirms it with one click inside the chat. The chat path uses the same price calculation, the same overlap check and the same one‑hour slot and opening‑hours rules as the facility page, but does not offer equipment rentals.</p>
+  <p>Sporty has two modes. With a Google Gemini key configured it holds a free‑form conversation. Without a key it runs in a demo mode that recognises common questions and answers from the database, which is what the screenshot shows.</p>
+</div>
+
+<div>
+  <figure>
+    <img style="max-height:80mm;width:auto" src="screenshots/09-chatbot-crop.png" alt="Sporty chat assistant listing padel courts">
+    <figcaption>Sporty in demo mode answering "Where can I play Padel?" with the three venues that have padel courts and their hourly prices.</figcaption>
+  </figure>
+</div>
+
+<!-- ======================= 4. MANAGER ======================= -->
+<div class="chapter">
+  <h2>4. The facility manager experience</h2>
+
+  <p>Managers use the admin panel at <code>/admin</code>. It has its own sign‑in, separate from the public site. The left menu lists Bookings, Courts, Facilities, Rentals and Reviews. Notice what is missing: Amenities. The shared amenity list is platform‑wide and only administrators may change it.</p>
+
+  
+  <h3>Only your own venues</h3>
+  <p>The sample manager is assigned to two of the five venues. The Facilities list shows exactly those two. The same scoping applies to Courts, Bookings, Rentals and Reviews: every list is filtered to the manager's facilities, every edit checks that the record belongs to one of them, and every form that lets you pick a facility or a court offers only theirs. A manager cannot create a new facility; that is an administrator's job.</p>
+</div>
+
+<div>
+  <div class="pair"><figure>
+    <img src="screenshots/10-admin-manager-dashboard.png" alt="Admin panel dashboard as seen by a facility manager">
+    <figcaption>The panel as the sample manager sees it after signing in.</figcaption>
+  </figure><figure>
+    <img src="screenshots/11-admin-manager-facilities.png" alt="Facilities list scoped to the manager's two venues">
+    <figcaption>The manager's Facilities list: two venues, not five. There is no New Facility button.</figcaption>
+  </figure></div>
+
+  <h3>Schedule and details</h3>
+  <p>Editing a facility is where a manager sets the venue up. Opening and closing hours are whole hours in 24‑hour format and directly control the public availability grid: set 7 and 23 and the grid shows 07:00 through 22:00. The form refuses a closing hour that is not later than the opening hour. The same form holds the description and address shown to players, the cover image, and the amenity checkboxes that drive the public filters.</p>
+</div>
+
+<div>
+  
+  <h3>Courts, rentals and bookings</h3>
+  <p>Courts are added under the Courts menu with a name, a sport, a facility from the manager's own list and a base price per hour. Rentals work the same way: a name, a price, the facility, and which sports the item suits, so a swim cap is never offered on a football pitch. Bookings shows every reservation on the manager's courts with the player's name, court, time, status and total. Managers can create a booking on behalf of a walk‑in customer or correct a status, for example marking a booking as checked in when the player arrives.</p>
+</div>
+
+<div>
+  <div class="pair"><figure>
+    <img src="screenshots/12-admin-manager-facility-edit.png" alt="Edit facility form with opening and closing hours">
+    <figcaption>Editing Central Sports Hall. Opening hour 8, closing hour 22, all five amenities ticked.</figcaption>
+  </figure><figure>
+    <img src="screenshots/13-admin-manager-bookings.png" alt="Bookings list for the manager's courts">
+    <figcaption>Bookings across the manager's venues: the Saturday reservation made earlier in this document and a completed one in Tetovo.</figcaption>
+  </figure></div>
+
+  <h3>Reviews</h3>
+  <p>Managers can read every review left for their venues, with the rating, comment and author. They cannot edit or delete reviews. That is deliberate: a rating players can trust is worth more to a venue than the ability to remove a bad one.</p>
+</div>
+
+<!-- ======================= 5. ADMIN ======================= -->
+<div class="chapter">
+  <h2>5. The administrator experience</h2>
+
+  <p>Administrators sign in to the same panel and see the whole platform. The Facilities list shows all five venues and gains a New Facility button. An Amenities entry appears in the menu. Every list across Courts, Bookings, Rentals and Reviews is unfiltered, and administrators may create, edit and delete anything, including reviews when moderation is needed.</p>
+
+  <h3>The full catalogue</h3>
+  <p>The Courts list gives administrators a single view of every bookable court in the country with its sport, venue and price. Prices are shown in denar everywhere in the panel, exactly as players see them.</p>
+
+<div class="pair"><figure>
+    <img src="screenshots/14-admin-facilities.png" alt="Facilities list as administrator with all five venues">
+    <figcaption>The administrator's Facilities list: all five venues and the New Facility action.</figcaption>
+  </figure><figure>
+    <img src="screenshots/16-admin-courts.png" alt="Courts list across all facilities">
+    <figcaption>All fifteen courts across the five venues, paginated.</figcaption>
+  </figure></div>
+
+  <h3>Assigning managers</h3>
+  <p>At the bottom of each facility's edit page administrators see a Facility Managers section that managers do not. Assign Manager opens a picker limited to users who hold the manager role; assigning one gives that person access to this venue in their panel from their next page load. Unassign removes it just as quickly. A user with the manager role but no assigned facility cannot sign in to the panel at all, which means a departed employee is locked out the moment their last assignment is removed.</p>
+
+<figure>
+    <img style="max-height:58mm" src="screenshots/15-admin-facility-managers.png" alt="Facility Managers section with Assign manager action">
+    <figcaption>The Facility Managers section on Central Sports Hall. One manager is assigned; Assign Manager adds another.</figcaption>
+  </figure>
+</div>
+
+<!-- ======================= 6. RULES ======================= -->
+<div class="chapter">
+  <h2>6. Rules the system enforces</h2>
+
+  <p>These are the business rules the software guarantees regardless of who is clicking. Each one is checked on the server, and the important ones are also backed by the database so that no path around the interface can break them.</p>
+
+  <h3>Pricing</h3>
+  <p>The base price is the court's hourly rate multiplied by the number of hours, with a minimum of one hour. Bookings that start between 18:00 and 21:59 carry a peak surcharge of twenty percent. Bookings that start on a Saturday or Sunday carry a weekend surcharge of ten percent, applied after the peak surcharge. Equipment is added last at its listed price times quantity. The total is stored with the booking, so a later price change at the venue never alters what a player already agreed to pay.</p>
+
+  <div class="example">
+    <p><strong>Worked example.</strong> Football Court A costs 1,200 MKD per hour. A player books Saturday 18:00 to 19:00 and adds one ball at 300 MKD.</p>
+    <p>Base: 1,200. Peak +20%: 1,440. Weekend +10% on top: 1,584. Ball: 1,884 MKD total, exactly as the booking panel in section 3 shows.</p>
+  </div>
+
+  <h3>Availability and double booking</h3>
+  <p>Slots are one hour long and run from the venue's opening hour to its closing hour. A slot in the past cannot be booked, even by editing the request. A slot that overlaps any confirmed, checked‑in or completed booking on the same court is not available. Cancelled bookings release their slot. When a booking is confirmed, the system re‑checks for overlap inside a transaction and then writes the new booking. Because the public site only books whole, aligned hours, two simultaneous attempts on the same slot collide on a database uniqueness rule for court, start and end time, so one succeeds and one is refused.</p>
+
+  <h3>Cancellation</h3>
+  <p>A player may cancel only their own booking, only while it is still confirmed, and only if it starts more than 24 hours from the moment of cancellation. Inside that window the option is not offered and a direct request is refused with an explanation.</p>
+
+  <h3>Reviews</h3>
+  <p>A player may review a venue only after having at least one booking there that was not cancelled. Each player may leave one review per venue; the database itself refuses a second. Ratings are whole numbers from one to five. Comments are optional and capped at a thousand characters.</p>
+
+  <h3>Access</h3>
+  <p>The admin panel admits administrators and managers assigned to at least one facility; everyone else is turned away. Inside it, every list, form and save a manager touches is restricted to their facilities. Public sign‑in is limited to six attempts per minute per address.</p>
+</div>
+
+<!-- ======================= 7. HOW IT IS BUILT ======================= -->
+<div class="chapter">
+  <h2>7. How it is built</h2>
+
+  <p>Sport Manager is a single server‑rendered web application. There is no separate front‑end project and no mobile app; the browser talks to one Laravel application that renders pages and handles every interaction. This keeps the codebase small and puts all business rules in one place.</p>
+
+  <figure class="keep">
+    <svg viewBox="0 0 700 300" width="100%" xmlns="http://www.w3.org/2000/svg" font-size="12">
+      <defs>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker>
+      </defs>
+      <!-- Browsers -->
+      <rect x="20" y="40" width="150" height="56" fill="#fff" stroke="#111" stroke-width="1.5"/>
+      <text x="95" y="63" text-anchor="middle" font-weight="700">Player's browser</text>
+      <text x="95" y="82" text-anchor="middle" fill="#666">public site</text>
+      <rect x="20" y="200" width="150" height="56" fill="#fff" stroke="#111" stroke-width="1.5"/>
+      <text x="95" y="223" text-anchor="middle" font-weight="700">Manager's browser</text>
+      <text x="95" y="242" text-anchor="middle" fill="#666">admin panel</text>
+      <!-- App -->
+      <rect x="260" y="20" width="220" height="256" fill="#f3f3f1" stroke="#111" stroke-width="1.5"/>
+      <text x="370" y="44" text-anchor="middle" font-weight="700">Laravel application</text>
+      <rect x="280" y="62" width="180" height="40" fill="#fff" stroke="#111"/>
+      <text x="370" y="79" text-anchor="middle">Livewire pages</text>
+      <text x="370" y="94" text-anchor="middle" fill="#666" font-size="10.5">search · facility · dashboard · chat</text>
+      <rect x="280" y="112" width="180" height="40" fill="#fff" stroke="#111"/>
+      <text x="370" y="129" text-anchor="middle">Filament admin panel</text>
+      <text x="370" y="144" text-anchor="middle" fill="#666" font-size="10.5">scoped by role and facility</text>
+      <rect x="280" y="170" width="180" height="40" fill="#fff" stroke="#111"/>
+      <text x="370" y="187" text-anchor="middle">Domain models and rules</text>
+      <text x="370" y="202" text-anchor="middle" fill="#666" font-size="10.5">pricing · availability · access</text>
+      <rect x="280" y="220" width="180" height="40" fill="#fff" stroke="#111"/>
+      <text x="370" y="237" text-anchor="middle">Auth, roles, sessions</text>
+      <text x="370" y="252" text-anchor="middle" fill="#666" font-size="10.5">Laravel auth · Spatie permissions</text>
+      <!-- DB -->
+      <rect x="560" y="100" width="120" height="56" fill="#fff" stroke="#111" stroke-width="1.5"/>
+      <text x="620" y="123" text-anchor="middle" font-weight="700">PostgreSQL</text>
+      <text x="620" y="142" text-anchor="middle" fill="#666">all business data</text>
+      <!-- Gemini -->
+      <rect x="560" y="200" width="120" height="56" fill="#fff" stroke="#111" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="620" y="223" text-anchor="middle" font-weight="700">Gemini API</text>
+      <text x="620" y="242" text-anchor="middle" fill="#666">optional, for chat</text>
+      <!-- arrows -->
+      <line x1="170" y1="68" x2="258" y2="68" stroke="#111" stroke-width="1.5" marker-end="url(#a)" marker-start="url(#a)"/>
+      <line x1="170" y1="228" x2="258" y2="228" stroke="#111" stroke-width="1.5" marker-end="url(#a)" marker-start="url(#a)"/>
+      <line x1="480" y1="128" x2="558" y2="128" stroke="#111" stroke-width="1.5" marker-end="url(#a)" marker-start="url(#a)"/>
+      <line x1="480" y1="228" x2="558" y2="228" stroke="#111" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#a)"/>
+    </svg>
+    <figcaption>One application serves both the public site and the admin panel. They share the same models, rules and database.</figcaption>
+  </figure>
+
+  <h3>The pieces</h3>
+  <p><strong>Laravel 11 on PHP 8.2</strong> is the framework. It handles routing, authentication, sessions, validation, database access and the queue. It was chosen because the product is form‑heavy and database‑driven, which is exactly what Laravel is good at, and because it comes with mature answers for the boring but critical parts such as password hashing and request throttling.</p>
+  <p><strong>Livewire 3</strong> powers the public pages. It lets the server render the page and then update parts of it in response to user actions, such as changing a filter or ticking a rental, without a full reload and without writing a separate JavaScript application. Every rule stays in PHP, on the server, where it can be trusted. Tailwind CSS provides the styling.</p>
+  <p><strong>Filament 3</strong> is the admin panel. It generates lists, forms and actions from the data models, so the manager and administrator screens are built by declaring what each role may see and do rather than by hand‑writing pages. Filament Shield adds role management.</p>
+  <p><strong>Spatie Permission</strong> stores roles. Three roles matter: player, facility manager and administrator. Facility scoping is not a role; it is a many‑to‑many link between managers and facilities, which is why a manager can be responsible for several venues.</p>
+  <p><strong>PostgreSQL</strong> is the database in development and deployment. The automated tests run against an in‑memory SQLite database so they are fast and never touch real data.</p>
+  <p><strong>Docker</strong> packages the application, a queue worker and PostgreSQL into three containers that start with one command. <strong>Google Gemini</strong> is an optional dependency used only by the chat assistant when a key is supplied.</p>
+</div>
+
+<div>
+  <h3>The data</h3>
+  <p>Seven kinds of records make up the business data. A <strong>facility</strong> is a venue with an address, opening hours and a set of amenities. It owns <strong>courts</strong>, each with a sport and an hourly price, and <strong>rentals</strong>, each priced and tagged with the sports it suits. A <strong>booking</strong> joins a <strong>user</strong> to a court for a start and end time, carries a status, the total price agreed, and the QR code, and may have rentals attached with quantities. A <strong>review</strong> joins a user to a facility with a rating and comment. <strong>Amenities</strong> are a shared list that facilities pick from. Managers are linked to the facilities they run.</p>
+
+  <figure class="keep">
+    <svg viewBox="0 0 690 300" width="100%" xmlns="http://www.w3.org/2000/svg" font-size="12">
+      <g stroke="#111" stroke-width="1.5" fill="#fff">
+        <rect x="20" y="20" width="130" height="44"/>
+        <rect x="190" y="20" width="130" height="44"/>
+        <rect x="360" y="20" width="130" height="44"/>
+        <rect x="530" y="20" width="130" height="44"/>
+        <rect x="190" y="130" width="130" height="44"/>
+        <rect x="20" y="240" width="130" height="44"/>
+        <rect x="190" y="240" width="130" height="44"/>
+      </g>
+      <g text-anchor="middle" font-weight="700">
+        <text x="85" y="47">Amenity</text>
+        <text x="255" y="47">Facility</text>
+        <text x="425" y="47">Review</text>
+        <text x="595" y="47">User</text>
+        <text x="255" y="157">Court</text>
+        <text x="85" y="267">Rental</text>
+        <text x="255" y="267">Booking</text>
+      </g>
+      <g stroke="#111" stroke-width="1.2" fill="none">
+        <line x1="150" y1="42" x2="190" y2="42"/>
+        <line x1="320" y1="42" x2="360" y2="42"/>
+        <line x1="490" y1="42" x2="530" y2="42"/>
+        <line x1="255" y1="64" x2="255" y2="130"/>
+        <line x1="255" y1="174" x2="255" y2="240"/>
+        <line x1="150" y1="262" x2="190" y2="262"/>
+        <line x1="565" y1="64" x2="320" y2="250"/>
+      </g>
+      <g fill="#333" font-size="10.5">
+        <text x="170" y="36" text-anchor="middle">has</text>
+        <text x="340" y="36" text-anchor="middle">of</text>
+        <text x="510" y="36" text-anchor="middle">by</text>
+        <text x="262" y="102">has many</text>
+        <text x="262" y="212">has many</text>
+        <text x="170" y="256" text-anchor="middle" font-size="10">adds</text>
+        <text x="455" y="165">made by</text>
+      </g>
+    </svg>
+    <figcaption>The core records and how they relate. A facility owns courts and offers rentals; a booking joins a user to a court and may include rentals; a review joins a user to a facility. Managers are users linked to the facilities they run.</figcaption>
+  </figure>
+
+  <p>Two details are worth knowing. All records except users use random identifiers rather than sequential numbers, so a public address like <code>/facility/a2c41fad‑…</code> reveals nothing about how many venues exist. And every price is stored as an integer number of hundredths of a denar, never as a decimal, so totals are exact and never drift by a rounding error.</p>
+</div>
+
+<!-- ======================= 8. QUALITY ======================= -->
+<div class="chapter">
+  <h2>8. Quality and security</h2>
+
+  <h3>Automated tests</h3>
+  <p>The application ships with 47 automated tests that currently pass in about two to three seconds. They exercise the rules from section 6 directly rather than the screens, which makes them fast and stable. Pricing is covered at the unit level: base price, minimum one hour, multi‑hour, the exact 18:00 and 22:00 boundaries of the peak window, weekend, and both surcharges stacked. Booking is covered end to end: a signed‑in player can book, an anonymous visitor is sent to sign in, a past slot is refused, a taken slot is refused, rentals are attached and priced, cancellation is allowed outside 24 hours and refused inside it or by the wrong user. Reviews are covered for eligibility, the cancelled‑booking exclusion, duplicates, rating range and comment length. Admin access is covered for the role rules, manager scoping across facilities, courts, rentals and reviews, and the amenity restriction. The chat assistant is covered for rendering, suggestions, demo answers and the prepare‑then‑confirm booking flow.</p>
+
+  <h3>Security measures</h3>
+  <ul>
+    <li>Passwords are hashed with bcrypt. Plain passwords are never stored or logged.</li>
+    <li>Sign‑in is throttled to six attempts per minute per address.</li>
+    <li>Every form is protected against cross‑site request forgery, and sign‑out is a POST so a link cannot log someone out.</li>
+    <li>The admin panel uses its own session guard. Being signed in as a player does not grant anything on the admin side.</li>
+    <li>Manager scoping is applied in the database query, not just in the interface, and re‑checked on every save. Submitting another venue's identifier by hand is rejected.</li>
+    <li>Double booking is prevented by an overlap check inside a transaction, backed by a unique constraint on court, start and end time that catches simultaneous attempts on the same slot.</li>
+    <li>One review per player per venue is a database constraint, not only an interface rule.</li>
+    <li>Chat messages are escaped before display, so neither a user nor the assistant can inject markup into the page.</li>
+    <li>Public identifiers are random, not sequential, so records cannot be enumerated.</li>
+  </ul>
+</div>
+
+<!-- ======================= 9. RUNNING ======================= -->
+<div class="chapter">
+  <h2>9. Running the application</h2>
+
+  <p>The intended way to run Sport Manager is with Docker. One command builds the image, starts the application, a background worker and PostgreSQL, creates the configuration file, generates the application key and runs the database migrations.</p>
+
+<pre>docker-compose up --build</pre>
+
+  <p>The site is then at <code>http://localhost:8000</code> and the admin panel at <code>http://localhost:8000/admin</code>. To load the sample venues, courts, rentals and accounts used throughout this document:</p>
+
+<pre>docker-compose exec app php artisan db:seed</pre>
+
+  <p>To run the automated tests:</p>
+
+<pre>docker-compose exec app php artisan test</pre>
+
+  <h3>Sample accounts</h3>
+  <p>The seed creates one account per role, all with the password <code>password</code>. The administrator is <code>admin@test.com</code>. The facility manager is <code>manager@test.com</code> and is assigned to Central Sports Hall and Tetovo Sports Complex. The player is <code>user@test.com</code>.</p>
+
+  <h3>Configuration that matters</h3>
+  <p>The time zone must stay <code>Europe/Skopje</code>, as shipped, or morning slots would be marked past too early. The Gemini key is optional: empty means Sporty runs in demo mode.</p>
+
+  <h3>A five‑minute demonstration</h3>
+  <ul>
+    <li>Filter the homepage by city and sport, open a venue, pick a future weekend evening slot, sign in as the player, tick a rental, note the itemised price and confirm. Show the dashboard with the QR code.</li>
+    <li>Sign in to the admin panel as the manager: the booking is in their list and only two venues are visible.</li>
+    <li>Sign in as the administrator: all five venues and the Facility Managers section. Finish by asking Sporty where to play padel.</li>
+  </ul>
+</div>
+
+<!-- ======================= 10. LIMITATIONS ======================= -->
+<div class="chapter">
+  <h2>10. Limitations and next steps</h2>
+
+  <p>Sport Manager does what the previous pages describe and nothing more. The following are the known gaps, in the order they would matter to a real deployment.</p>
+
+  <h3>Not yet built</h3>
+  <ul>
+    <li><strong>Payment.</strong> Prices are calculated and recorded but nothing is charged. Players pay at the venue. Card payment at booking time is the obvious next feature and the pricing engine already produces the exact amount.</li>
+    <li><strong>Multi‑hour bookings.</strong> The public grid books one hour at a time. The pricing engine already handles longer durations, so this is a change to the grid and confirmation panel, not to the rules.</li>
+    <li><strong>Notifications.</strong> There is no email or SMS confirmation and no reminder before a booking. The queue worker is already running and ready to send them.</li>
+    <li><strong>Check‑in at the door.</strong> The QR code exists and a booking can be marked checked in from the admin panel, but there is no scanner screen for venue staff.</li>
+    <li><strong>Rental quantities.</strong> The public booking panel adds one of each selected item. The data model supports quantities and the admin panel can set them.</li>
+    <li><strong>Return after sign‑in.</strong> A visitor who confirms a slot before signing in lands on the homepage afterwards and has to reselect the slot.</li>
+    <li><strong>Reporting.</strong> Managers see lists, not charts. Occupancy and revenue per court per week is the first report a venue would ask for.</li>
+  </ul>
+
+  <h3>Known constraints</h3>
+  <ul>
+    <li>The public pages load Tailwind CSS and the date picker from public content networks, so the site needs internet access even when hosted internally.</li>
+    <li>Sporty's free‑form mode depends on a paid third‑party service. Demo mode has no such dependency.</li>
+    <li>The interface is in English. Macedonian and Albanian translations would be needed for the intended market.</li>
+  </ul>
+
+  <p>None of these change the shape of the system. The rules in section 6 and the structure in section 7 are the parts that would stay as the product grows.</p>
+</div>
+
+</body>
+</html>

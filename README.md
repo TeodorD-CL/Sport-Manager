@@ -2,7 +2,9 @@
 
 Sport Manager is a sports facility booking platform for courts and sports venues in Macedonia. Users can search facilities, view court availability, book time slots, add equipment rentals, manage their bookings, and leave reviews after visiting a facility. Administrators and facility managers use a Filament admin panel to manage facilities, courts, rentals, bookings, reviews, amenities, and schedules.
 
-The project is built with Laravel 11, Livewire 3, Blade, Tailwind CSS via CDN, Filament v3, Spatie permissions, and SQLite by default.
+The project is built with Laravel 11, Livewire 3, Blade, Tailwind CSS via CDN, Filament v3, Spatie permissions, and PostgreSQL (SQLite in-memory for tests).
+
+> **Main documentation:** the product documentation lives in [`docs/Sport-Manager-Documentation.pdf`](docs/Sport-Manager-Documentation.pdf) (source: [`docs/documentation.html`](docs/documentation.html)). This README is the developer quick reference; `PROJECT_DOCUMENTATION.md` holds the older technical reference.
 
 ## Table of Contents
 
@@ -49,7 +51,6 @@ The project is built with Laravel 11, Livewire 3, Blade, Tailwind CSS via CDN, F
 - Assign facility managers to specific facilities.
 - Restrict facility managers to only the facilities they manage.
 - Review user feedback from the admin panel.
-- Use calendar-style booking views through the Filament FullCalendar plugin.
 
 ## Technology Stack
 
@@ -60,10 +61,8 @@ The project is built with Laravel 11, Livewire 3, Blade, Tailwind CSS via CDN, F
 | Frontend | Livewire 3, Blade, Tailwind CSS CDN |
 | Admin panel | Filament v3 |
 | Authorization | Spatie Laravel Permission, Filament Shield |
-| Media handling | Spatie Laravel MediaLibrary |
-| Calendar | Saade Filament FullCalendar |
 | QR codes | SimpleSoftwareIO Simple QRCode |
-| Default database | SQLite |
+| Default database | PostgreSQL (SQLite in-memory for tests) |
 | Test database | In-memory SQLite |
 | Queue, cache, session defaults | Database drivers |
 
@@ -581,7 +580,6 @@ General production reminders:
 - Configure `APP_URL` to the deployed domain.
 - Run migrations during deployment.
 - Seed demo data only when intentionally creating a demo environment.
-- Use a persistent storage strategy for uploaded files if media uploads are enabled.
 
 ## Troubleshooting
 

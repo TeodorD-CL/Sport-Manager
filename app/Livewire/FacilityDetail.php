@@ -231,7 +231,8 @@ class FacilityDetail extends Component
                 return $newBooking;
             });
         } catch (\RuntimeException $e) {
-            if ($e->getMessage() === 'slot_taken') {
+            // A concurrent booking that slipped past the overlap check hits the unique (court, start, end) constraint.
+            if ($e->getMessage() === 'slot_taken' || $e instanceof \Illuminate\Database\UniqueConstraintViolationException) {
                 session()->flash('error', 'This slot is no longer available.');
                 $this->showBookingModal = false;
                 $this->loadAvailableSlots();

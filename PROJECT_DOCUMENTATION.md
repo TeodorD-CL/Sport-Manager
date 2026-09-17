@@ -31,8 +31,6 @@ There is also a `panel_user` role created by the seeder for compatibility with F
 | Styling | Tailwind CSS CDN in the main layout |
 | Admin panel | Filament v3 |
 | Admin permissions | Spatie Laravel Permission and Filament Shield |
-| Calendar plugin | Saade Filament FullCalendar |
-| Media package | Spatie Laravel MediaLibrary |
 | QR codes | SimpleSoftwareIO Simple QRCode |
 | AI assistant integration | Gemini API, optional through `GEMINI_API_KEY` |
 | Local/Docker database in current config | PostgreSQL |
@@ -367,7 +365,6 @@ The main business tables are:
 | `reviews` | User reviews for facilities |
 | `facility_user` | Facility manager assignments |
 | `roles`, `permissions`, etc. | Spatie permission tables |
-| `media` | Spatie MediaLibrary table |
 | `jobs`, `cache`, `sessions` | Laravel infrastructure tables |
 
 High-level relationship diagram:
@@ -698,7 +695,6 @@ Configuration highlights:
 - middleware includes `EnsureUserIsAdmin`
 - plugins:
   - Filament Shield
-  - Filament FullCalendar
 
 ### Admin Resources
 
