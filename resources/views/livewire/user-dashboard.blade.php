@@ -101,8 +101,8 @@
                             </div>
 
                             <div class="flex gap-3">
-                                @if($booking->status === 'confirmed')
-                                    <button wire:click="cancelBooking('{{ $booking->id }}')"
+                                @if($booking->status === 'confirmed' && $booking->start_time->isFuture())
+                                    <button wire:click="cancelBooking(@js($booking->id))"
                                             wire:loading.attr="disabled"
                                             wire:confirm="Are you sure you want to cancel this reservation?"
                                             class="text-[11px] font-bold text-black uppercase tracking-widest hover:underline transition-all py-2">
@@ -117,7 +117,7 @@
                     </div>
 
                     {{-- QR Code Column --}}
-                    @if($booking->status !== 'cancelled')
+                    @if($booking->status !== 'cancelled' && $booking->qr_code)
                     <div class="flex flex-col items-center justify-center border-l border-gray-200 pl-6 shrink-0 hidden md:flex">
                         <div class="p-2 border border-black bg-white">
                             {!! \SimpleSoftwareIO\QrCode\Facades\QrCode::size(100)->color(17, 17, 17)->generate($booking->qr_code) !!}

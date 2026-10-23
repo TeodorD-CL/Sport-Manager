@@ -36,7 +36,7 @@ class BookingTest extends TestCase
         ]);
     }
 
-    private function createBooking(Court $court, User $user, string $start, string $end, string $status = 'confirmed'): Booking
+    private function createBooking(Court $court, User $user, $start, $end, string $status = 'confirmed'): Booking
     {
         return Booking::create([
             'user_id' => $user->id,
@@ -294,5 +294,165 @@ class BookingTest extends TestCase
             ->assertSee('Cancellations must be made more than 24 hours');
 
         $this->assertSame('confirmed', $booking->fresh()->status);
+    }
+
+    // --- Tampered booking requests (values the browser can send) ---
+
+    private function attemptBooking(User $user, Facility $facility, array $slot, array $rentals = [], ?string $date = null)
+    {
+        return Livewire::actingAs($user)
+            ->test(\App\Livewire\FacilityDetail::class, ['id' => $facility->id])
+            ->set('selectedDate', $date ?? Carbon::parse('next monday')->format('Y-m-d'))
+            ->set('selectedCourtId', $facility->courts()->first()->id)
+            ->set('selectedSlot', $slot)
+            ->set('selectedRentals', $rentals)
+            ->call('confirmBooking');
+    }
+
+    public function test_tampered_slots_are_rejected_without_errors(): void
+    {
+        $user = User::factory()->create();
+        $facility = $this->createFacility();
+        $this->createCourt($facility);
+
+        foreach ([
+            ['start' => '10:00', 'end' => '14:00'],  // 4 hours
+            ['start' => '11:00', 'end' => '10:00'],  // ends before it starts
+            ['start' => '10:00', 'end' => '10:00'],  // zero length
+            ['start' => '10:30', 'end' => '11:30'],  // not on the hour
+            ['start' => '05:00', 'end' => '06:00'],  // before opening
+            ['start' => 'abc', 'end' => 'def'],      // garbage
+            ['start' => ['x'], 'end' => '11:00'],    // wrong type
+        ] as $slot) {
+            $this->attemptBooking($user, $facility, $slot)->assertNoRedirect();
+        }
+
+        $this->assertDatabaseCount('bookings', 0);
+    }
+
+    public function test_rentals_from_other_facilities_or_invalid_ids_are_rejected(): void
+    {
+        $user = User::factory()->create();
+        $facility = $this->createFacility();
+        $this->createCourt($facility);
+        $otherFacility = $this->createFacility();
+        $foreign = Rental::create(['facility_id' => $otherFacility->id, 'name' => 'Racket', 'price' => 500, 'suitable_for' => ['Tennis']]);
+        $wrongSport = Rental::create(['facility_id' => $facility->id, 'name' => 'Goggles', 'price' => 500, 'suitable_for' => ['Swimming']]);
+
+        foreach ([[$foreign->id], [$wrongSport->id], ['not-a-uuid'], [['nested']]] as $rentals) {
+            $this->attemptBooking($user, $facility, ['start' => '10:00', 'end' => '11:00'], $rentals)->assertNoRedirect();
+        }
+
+        $this->assertDatabaseCount('bookings', 0);
+    }
+
+    public function test_cancelled_slot_can_be_booked_again(): void
+    {
+        $user = User::factory()->create();
+        $facility = $this->createFacility();
+        $court = $this->createCourt($facility);
+        $monday = Carbon::parse('next monday');
+        $this->createBooking($court, $user, $monday->copy()->setTime(10, 0), $monday->copy()->setTime(11, 0), 'cancelled');
+
+        $this->attemptBooking($user, $facility, ['start' => '10:00', 'end' => '11:00'])
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertSame(1, Booking::where('status', 'confirmed')->count());
+    }
+
+    public function test_overlapping_booking_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $facility = $this->createFacility();
+        $court = $this->createCourt($facility);
+        $monday = Carbon::parse('next monday');
+        // A two-hour admin booking 10-12 must block the 11:00 slot.
+        $this->createBooking($court, $user, $monday->copy()->setTime(10, 0), $monday->copy()->setTime(12, 0));
+
+        $this->attemptBooking($user, $facility, ['start' => '11:00', 'end' => '12:00'])->assertNoRedirect();
+
+        $this->assertDatabaseCount('bookings', 1);
+    }
+
+    public function test_last_slot_of_a_facility_open_until_midnight_can_be_booked(): void
+    {
+        $user = User::factory()->create();
+        $facility = $this->createFacility();
+        $facility->update(['opening_hour' => 8, 'closing_hour' => 24]);
+        $court = $this->createCourt($facility);
+
+        $component = Livewire::actingAs($user)
+            ->test(\App\Livewire\FacilityDetail::class, ['id' => $facility->id])
+            ->set('selectedDate', Carbon::parse('next monday')->format('Y-m-d'))
+            ->call('selectSlot', $court->id, '23:00')
+            ->assertSet('selectedSlot', ['start' => '23:00', 'end' => '24:00'])
+            ->call('confirmBooking')
+            ->assertRedirect(route('dashboard'));
+
+        $booking = Booking::first();
+        $this->assertSame('23:00', $booking->start_time->format('H:i'));
+        $this->assertTrue($booking->end_time->equalTo($booking->start_time->copy()->addHour()));
+    }
+
+    public function test_booking_gets_a_qr_code_and_keeps_rental_price(): void
+    {
+        $user = User::factory()->create();
+        $facility = $this->createFacility();
+        $this->createCourt($facility);
+        $rental = Rental::create(['facility_id' => $facility->id, 'name' => 'Racket', 'price' => 500, 'suitable_for' => ['Tennis']]);
+
+        $this->attemptBooking($user, $facility, ['start' => '10:00', 'end' => '11:00'], [$rental->id])
+            ->assertRedirect(route('dashboard'));
+
+        $booking = Booking::first();
+        $this->assertNotNull($booking->qr_code);
+        $this->assertSame(500, $booking->rentals->first()->pivot->unit_price);
+    }
+
+    public function test_dashboard_renders_bookings_without_qr_code(): void
+    {
+        $user = User::factory()->create();
+        $court = $this->createCourt($this->createFacility());
+        $booking = $this->createBooking($court, $user, now()->addDays(3)->toDateTimeString(), now()->addDays(3)->addHour()->toDateTimeString());
+        $booking->forceFill(['qr_code' => null])->save();
+
+        $this->actingAs($user)->get('/dashboard')->assertOk()->assertSee($court->name);
+    }
+
+    public function test_court_with_bookings_cannot_be_deleted_from_the_database(): void
+    {
+        $user = User::factory()->create();
+        $court = $this->createCourt($this->createFacility());
+        $this->createBooking($court, $user, now()->addDay()->toDateTimeString(), now()->addDay()->addHour()->toDateTimeString());
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+        $court->delete();
+    }
+
+    public function test_non_uuid_inputs_return_404_or_are_ignored(): void
+    {
+        $user = User::factory()->create();
+
+        $this->get('/facility/not-a-uuid')->assertNotFound();
+
+        Livewire::actingAs($user)
+            ->test(\App\Livewire\UserDashboard::class)
+            ->call('cancelBooking', 'not-a-uuid')
+            ->assertSee('Booking not found');
+    }
+
+    public function test_homepage_city_filter_is_not_injectable(): void
+    {
+        Facility::create([
+            'name' => 'Evil',
+            'description' => 'x',
+            'city' => "x'); alert(document.cookie); ('",
+            'address' => 'x',
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            // @js() hex-escapes the quote, so the value can't close the JavaScript string.
+            ->assertSee("\$set('city', 'x\\u0027); alert(document.cookie)", false);
     }
 }

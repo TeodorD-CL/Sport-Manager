@@ -32,7 +32,7 @@ class Rental extends Model
 
     public function bookings(): BelongsToMany
     {
-        return $this->belongsToMany(Booking::class)->withPivot('quantity');
+        return $this->belongsToMany(Booking::class)->withPivot('quantity', 'unit_price');
     }
 
     public function facility(): BelongsTo

@@ -12,26 +12,31 @@ use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
+    // Safe to run more than once: every record is matched by its natural key before it is created.
     public function run(): void
     {
-        $admin = User::create([
+        // Demo accounts must never get a known password on a live site.
+        $password = env('SEED_USER_PASSWORD');
+        if (app()->isProduction() && blank($password)) {
+            throw new \RuntimeException('Set SEED_USER_PASSWORD before seeding a production database.');
+        }
+        $password = bcrypt($password ?: 'password');
+
+        $admin = User::firstOrCreate(['email' => 'admin@test.com'], [
             'name' => 'Admin User',
-            'email' => 'admin@test.com',
-            'password' => bcrypt('password'),
+            'password' => $password,
             'phone' => '555-0001',
         ]);
 
-        $customer = User::create([
+        $customer = User::firstOrCreate(['email' => 'user@test.com'], [
             'name' => 'Test User',
-            'email' => 'user@test.com',
-            'password' => bcrypt('password'),
+            'password' => $password,
             'phone' => '555-0002',
         ]);
 
-        $facilityManager = User::create([
+        $facilityManager = User::firstOrCreate(['email' => 'manager@test.com'], [
             'name' => 'Facility Manager',
-            'email' => 'manager@test.com',
-            'password' => bcrypt('password'),
+            'password' => $password,
             'phone' => '555-0003',
         ]);
 
@@ -40,90 +45,85 @@ class DatabaseSeeder extends Seeder
         \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'panel_user', 'guard_name' => 'web']);
         $userRole = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'user', 'guard_name' => 'web']);
 
-        $admin->assignRole($superAdmin);
-        $customer->assignRole($userRole);
-        $facilityManager->assignRole($facilityManagerRole);
+        $admin->syncRoles($superAdmin);
+        $customer->syncRoles($userRole);
+        $facilityManager->syncRoles($facilityManagerRole);
 
-        $parking = Amenity::create(['name' => 'Parking', 'icon' => 'heroicon-o-truck']);
-        $wifi = Amenity::create(['name' => 'Wifi', 'icon' => 'heroicon-o-wifi']);
-        $showers = Amenity::create(['name' => 'Showers', 'icon' => 'heroicon-o-beaker']);
-        $lockers = Amenity::create(['name' => 'Lockers', 'icon' => 'heroicon-o-lock-closed']);
-        $cafe = Amenity::create(['name' => 'Cafe', 'icon' => 'heroicon-o-cake']);
+        $parking = Amenity::firstOrCreate(['name' => 'Parking'], ['icon' => 'heroicon-o-truck']);
+        $wifi = Amenity::firstOrCreate(['name' => 'Wifi'], ['icon' => 'heroicon-o-wifi']);
+        $showers = Amenity::firstOrCreate(['name' => 'Showers'], ['icon' => 'heroicon-o-beaker']);
+        $lockers = Amenity::firstOrCreate(['name' => 'Lockers'], ['icon' => 'heroicon-o-lock-closed']);
+        $cafe = Amenity::firstOrCreate(['name' => 'Cafe'], ['icon' => 'heroicon-o-cake']);
 
-        $central = Facility::create([
-            'name' => 'Central Sports Hall',
+        $central = Facility::firstOrCreate(['name' => 'Central Sports Hall'], [
             'description' => 'Modern sports complex with multiple courts and facilities. Perfect for team sports and individual training.',
             'city' => 'Skopje',
             'address' => 'ul. Filip II Makedonski 12',
             'image_path' => '/images/sports-hall.jpg',
         ]);
-        $central->amenities()->attach([$parking->id, $wifi->id, $showers->id, $lockers->id, $cafe->id]);
-        Court::create(['facility_id' => $central->id, 'name' => 'Football Court A', 'type' => 'Football', 'base_price_per_hour' => 120000, 'image_path' => '/images/football-pitch.jpg']);
-        Court::create(['facility_id' => $central->id, 'name' => 'Tennis Court 1', 'type' => 'Tennis', 'base_price_per_hour' => 80000, 'image_path' => '/images/tennis-court.jpg']);
-        Court::create(['facility_id' => $central->id, 'name' => 'Indoor Pool', 'type' => 'Swimming', 'base_price_per_hour' => 120000, 'image_path' => '/images/swimming-pool.jpg']);
+        $central->amenities()->syncWithoutDetaching([$parking->id, $wifi->id, $showers->id, $lockers->id, $cafe->id]);
+        Court::firstOrCreate(['facility_id' => $central->id, 'name' => 'Football Court A'], ['type' => 'Football', 'base_price_per_hour' => 120000, 'image_path' => '/images/football-pitch.jpg']);
+        Court::firstOrCreate(['facility_id' => $central->id, 'name' => 'Tennis Court 1'], ['type' => 'Tennis', 'base_price_per_hour' => 80000, 'image_path' => '/images/tennis-court.jpg']);
+        Court::firstOrCreate(['facility_id' => $central->id, 'name' => 'Indoor Pool'], ['type' => 'Swimming', 'base_price_per_hour' => 120000, 'image_path' => '/images/swimming-pool.jpg']);
 
-        $bitola = Facility::create([
-            'name' => 'Bitola Sports Arena',
+        $bitola = Facility::firstOrCreate(['name' => 'Bitola Sports Arena'], [
             'description' => 'Premier sports facility in Bitola with state-of-the-art equipment and professional-grade courts.',
             'city' => 'Bitola',
             'address' => 'bul. 1 Maj 45',
             'image_path' => '/images/football-pitch.jpg',
         ]);
-        $bitola->amenities()->attach([$parking->id, $showers->id, $lockers->id]);
-        Court::create(['facility_id' => $bitola->id, 'name' => 'Main Football Pitch', 'type' => 'Football', 'base_price_per_hour' => 100000, 'image_path' => '/images/football-pitch.jpg']);
-        Court::create(['facility_id' => $bitola->id, 'name' => 'Padel Court 1', 'type' => 'Padel', 'base_price_per_hour' => 90000, 'image_path' => '/images/padel-court.jpg']);
-        Court::create(['facility_id' => $bitola->id, 'name' => 'Tennis Court A', 'type' => 'Tennis', 'base_price_per_hour' => 70000, 'image_path' => '/images/tennis-court.jpg']);
+        $bitola->amenities()->syncWithoutDetaching([$parking->id, $showers->id, $lockers->id]);
+        Court::firstOrCreate(['facility_id' => $bitola->id, 'name' => 'Main Football Pitch'], ['type' => 'Football', 'base_price_per_hour' => 100000, 'image_path' => '/images/football-pitch.jpg']);
+        Court::firstOrCreate(['facility_id' => $bitola->id, 'name' => 'Padel Court 1'], ['type' => 'Padel', 'base_price_per_hour' => 90000, 'image_path' => '/images/padel-court.jpg']);
+        Court::firstOrCreate(['facility_id' => $bitola->id, 'name' => 'Tennis Court A'], ['type' => 'Tennis', 'base_price_per_hour' => 70000, 'image_path' => '/images/tennis-court.jpg']);
 
-        $ohrid = Facility::create([
-            'name' => 'Ohrid Aquatic Center',
+        $ohrid = Facility::firstOrCreate(['name' => 'Ohrid Aquatic Center'], [
             'description' => 'Beautiful swimming and water sports facility located near Lake Ohrid.',
             'city' => 'Ohrid',
             'address' => 'ul. Kej Makedonija 8',
             'image_path' => '/images/swimming-pool.jpg',
         ]);
-        $ohrid->amenities()->attach([$parking->id, $showers->id, $lockers->id, $cafe->id]);
-        Court::create(['facility_id' => $ohrid->id, 'name' => 'Olympic Pool', 'type' => 'Swimming', 'base_price_per_hour' => 120000, 'image_path' => '/images/swimming-pool.jpg']);
-        Court::create(['facility_id' => $ohrid->id, 'name' => 'Training Pool', 'type' => 'Swimming', 'base_price_per_hour' => 80000, 'image_path' => '/images/swimming-pool.jpg']);
-        Court::create(['facility_id' => $ohrid->id, 'name' => 'Tennis Court', 'type' => 'Tennis', 'base_price_per_hour' => 75000, 'image_path' => '/images/tennis-court.jpg']);
+        $ohrid->amenities()->syncWithoutDetaching([$parking->id, $showers->id, $lockers->id, $cafe->id]);
+        Court::firstOrCreate(['facility_id' => $ohrid->id, 'name' => 'Olympic Pool'], ['type' => 'Swimming', 'base_price_per_hour' => 120000, 'image_path' => '/images/swimming-pool.jpg']);
+        Court::firstOrCreate(['facility_id' => $ohrid->id, 'name' => 'Training Pool'], ['type' => 'Swimming', 'base_price_per_hour' => 80000, 'image_path' => '/images/swimming-pool.jpg']);
+        Court::firstOrCreate(['facility_id' => $ohrid->id, 'name' => 'Tennis Court'], ['type' => 'Tennis', 'base_price_per_hour' => 75000, 'image_path' => '/images/tennis-court.jpg']);
 
-        $tetovo = Facility::create([
-            'name' => 'Tetovo Sports Complex',
+        $tetovo = Facility::firstOrCreate(['name' => 'Tetovo Sports Complex'], [
             'description' => 'Multi-purpose sports facility with modern amenities and excellent maintenance.',
             'city' => 'Tetovo',
             'address' => 'ul. Ilindenska 22',
             'image_path' => '/images/sports-hall.jpg',
         ]);
-        $tetovo->amenities()->attach([$wifi->id, $showers->id, $parking->id]);
-        Court::create(['facility_id' => $tetovo->id, 'name' => 'Football Pitch', 'type' => 'Football', 'base_price_per_hour' => 110000, 'image_path' => '/images/football-pitch.jpg']);
-        Court::create(['facility_id' => $tetovo->id, 'name' => 'Padel Court', 'type' => 'Padel', 'base_price_per_hour' => 85000, 'image_path' => '/images/padel-court.jpg']);
-        Court::create(['facility_id' => $tetovo->id, 'name' => 'Indoor Court', 'type' => 'Tennis', 'base_price_per_hour' => 70000, 'image_path' => '/images/tennis-court.jpg']);
+        $tetovo->amenities()->syncWithoutDetaching([$wifi->id, $showers->id, $parking->id]);
+        Court::firstOrCreate(['facility_id' => $tetovo->id, 'name' => 'Football Pitch'], ['type' => 'Football', 'base_price_per_hour' => 110000, 'image_path' => '/images/football-pitch.jpg']);
+        Court::firstOrCreate(['facility_id' => $tetovo->id, 'name' => 'Padel Court'], ['type' => 'Padel', 'base_price_per_hour' => 85000, 'image_path' => '/images/padel-court.jpg']);
+        Court::firstOrCreate(['facility_id' => $tetovo->id, 'name' => 'Indoor Court'], ['type' => 'Tennis', 'base_price_per_hour' => 70000, 'image_path' => '/images/tennis-court.jpg']);
 
-        $prilep = Facility::create([
-            'name' => 'Prilep Professional Arena',
+        $prilep = Facility::firstOrCreate(['name' => 'Prilep Professional Arena'], [
             'description' => 'Professional-grade sports arena with top-tier facilities for competitive and recreational sports.',
             'city' => 'Prilep',
             'address' => 'ul. Marksova 15',
             'image_path' => '/images/football-pitch.jpg',
         ]);
-        $prilep->amenities()->attach([$parking->id, $wifi->id, $showers->id, $lockers->id, $cafe->id]);
-        Court::create(['facility_id' => $prilep->id, 'name' => 'Professional Pitch', 'type' => 'Football', 'base_price_per_hour' => 200000, 'image_path' => '/images/football-pitch.jpg']);
-        Court::create(['facility_id' => $prilep->id, 'name' => 'Pro Tennis Court', 'type' => 'Tennis', 'base_price_per_hour' => 100000, 'image_path' => '/images/tennis-court.jpg']);
-        Court::create(['facility_id' => $prilep->id, 'name' => 'Padel Arena', 'type' => 'Padel', 'base_price_per_hour' => 95000, 'image_path' => '/images/padel-court.jpg']);
+        $prilep->amenities()->syncWithoutDetaching([$parking->id, $wifi->id, $showers->id, $lockers->id, $cafe->id]);
+        Court::firstOrCreate(['facility_id' => $prilep->id, 'name' => 'Professional Pitch'], ['type' => 'Football', 'base_price_per_hour' => 200000, 'image_path' => '/images/football-pitch.jpg']);
+        Court::firstOrCreate(['facility_id' => $prilep->id, 'name' => 'Pro Tennis Court'], ['type' => 'Tennis', 'base_price_per_hour' => 100000, 'image_path' => '/images/tennis-court.jpg']);
+        Court::firstOrCreate(['facility_id' => $prilep->id, 'name' => 'Padel Arena'], ['type' => 'Padel', 'base_price_per_hour' => 95000, 'image_path' => '/images/padel-court.jpg']);
 
         foreach ([$central, $bitola, $ohrid, $tetovo, $prilep] as $facility) {
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Racket', 'price' => 50000, 'suitable_for' => ['Tennis', 'Padel']]);
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Ball', 'price' => 30000, 'suitable_for' => ['Football']]);
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Towel', 'price' => 20000, 'suitable_for' => ['Swimming', 'Tennis', 'Padel', 'Football']]);
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Goggles', 'price' => 40000, 'suitable_for' => ['Swimming']]);
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Swim Cap', 'price' => 25000, 'suitable_for' => ['Swimming']]);
-            Rental::create(['facility_id' => $facility->id, 'name' => 'Shin Guards', 'price' => 35000, 'suitable_for' => ['Football']]);
+            Rental::firstOrCreate(['facility_id' => $facility->id, 'name' => 'Racket'], ['price' => 50000, 'suitable_for' => ['Tennis', 'Padel']]);
+            Rental::firstOrCreate(['facility_id' => $facility->id, 'name' => 'Ball'], ['price' => 30000, 'suitable_for' => ['Football']]);
+            Rental::firstOrCreate(['facility_id' => $facility->id, 'name' => 'Towel'], ['price' => 20000, 'suitable_for' => ['Swimming', 'Tennis', 'Padel', 'Football']]);
+            Rental::firstOrCreate(['facility_id' => $facility->id, 'name' => 'Goggles'], ['price' => 40000, 'suitable_for' => ['Swimming']]);
+            Rental::firstOrCreate(['facility_id' => $facility->id, 'name' => 'Swim Cap'], ['price' => 25000, 'suitable_for' => ['Swimming']]);
+            Rental::firstOrCreate(['facility_id' => $facility->id, 'name' => 'Shin Guards'], ['price' => 35000, 'suitable_for' => ['Football']]);
         }
 
-        $facilityManager->managedFacilities()->sync([$central->id, $tetovo->id]);
+        $facilityManager->managedFacilities()->syncWithoutDetaching([$central->id, $tetovo->id]);
 
-        Review::create(['user_id' => $customer->id, 'facility_id' => $central->id, 'rating' => 5, 'comment' => 'Amazing facilities!']);
-        Review::create(['user_id' => $customer->id, 'facility_id' => $bitola->id, 'rating' => 4, 'comment' => 'Great courts, could use better parking']);
-        Review::create(['user_id' => $customer->id, 'facility_id' => $ohrid->id, 'rating' => 5, 'comment' => 'Best swimming pool in the region']);
-        Review::create(['user_id' => $customer->id, 'facility_id' => $prilep->id, 'rating' => 5, 'comment' => 'Top-notch professional facilities']);
+        Review::firstOrCreate(['user_id' => $customer->id, 'facility_id' => $central->id], ['rating' => 5, 'comment' => 'Amazing facilities!']);
+        Review::firstOrCreate(['user_id' => $customer->id, 'facility_id' => $bitola->id], ['rating' => 4, 'comment' => 'Great courts, could use better parking']);
+        Review::firstOrCreate(['user_id' => $customer->id, 'facility_id' => $ohrid->id], ['rating' => 5, 'comment' => 'Best swimming pool in the region']);
+        Review::firstOrCreate(['user_id' => $customer->id, 'facility_id' => $prilep->id], ['rating' => 5, 'comment' => 'Top-notch professional facilities']);
     }
 }

@@ -2,11 +2,12 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\ScopesToManagedFacilities;
 use App\Filament\Resources\ReviewResource\Pages;
 use App\Models\Review;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\Rules\Unique;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -15,6 +16,8 @@ use Filament\Tables\Table;
 
 class ReviewResource extends Resource
 {
+    use ScopesToManagedFacilities;
+
     protected static ?string $model = Review::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-star';
@@ -24,22 +27,24 @@ class ReviewResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('user_id')
-                    ->relationship('user', 'name'),
+                    ->relationship('user', 'name')
+                    ->searchable(['name', 'email'])
+                    ->required(),
                 Forms\Components\Select::make('facility_id')
                     ->relationship(
                         'facility',
                         'name',
-                        modifyQueryUsing: function (Builder $query) {
-                            $user = static::getCurrentAdminUser();
-                            if (!$user || $user->isSuperAdmin()) {
-                                return;
-                            }
-                            $query->whereIn('facilities.id', $user->managedFacilityIds());
-                        }
+                        modifyQueryUsing: fn (Builder $query) => static::scopeToManagedFacilities($query, 'facilities.id')
                     )
-                    ->required(),
+                    ->required()
+                    ->unique(
+                        ignoreRecord: true,
+                        modifyRuleUsing: fn (Unique $rule, Forms\Get $get) => $rule->where('user_id', $get('user_id')),
+                    )
+                    ->validationMessages(['unique' => 'This user has already reviewed this facility.']),
                 Forms\Components\TextInput::make('rating')
                     ->numeric()
+                    ->required()
                     ->minValue(1)
                     ->maxValue(5),
                 Forms\Components\Textarea::make('comment'),
@@ -50,37 +55,33 @@ class ReviewResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.name'),
-                Tables\Columns\TextColumn::make('facility.name'),
-                Tables\Columns\TextColumn::make('rating'),
+                Tables\Columns\TextColumn::make('user.name')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('facility.name')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('rating')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime(),
+                    ->dateTime()
+                    ->sortable(),
             ])
-            ->filters([])
+            ->defaultSort('created_at', 'desc')
+            ->filters([
+                static::facilityFilter(),
+            ])
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    static::deleteBulkAction(),
                 ]),
             ]);
     }
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
-        $user = static::getCurrentAdminUser();
-
-        if (!$user || $user->isSuperAdmin()) {
-            return $query;
-        }
-
-        if ($user->isFacilityManager()) {
-            return $query->whereIn('facility_id', $user->managedFacilityIds());
-        }
-
-        return $query->whereRaw('1 = 0');
+        return static::scopeToManagedFacilities(parent::getEloquentQuery(), 'facility_id');
     }
 
     public static function canViewAny(): bool
@@ -115,6 +116,12 @@ class ReviewResource extends Resource
         return static::canEdit($record);
     }
 
+    // Without this, Filament allows bulk delete when no policy exists, letting managers remove their own bad reviews.
+    public static function canDeleteAny(): bool
+    {
+        return static::getCurrentAdminUser()?->isSuperAdmin() ?? false;
+    }
+
     public static function getRelations(): array
     {
         return [];
@@ -127,18 +134,5 @@ class ReviewResource extends Resource
             'create' => Pages\CreateReview::route('/create'),
             'edit' => Pages\EditReview::route('/{record}/edit'),
         ];
-    }
-
-    protected static function getCurrentAdminUser(): ?User
-    {
-        $user = auth('admin')->user();
-
-        if ($user instanceof User) {
-            return $user;
-        }
-
-        $defaultGuardUser = auth()->user();
-
-        return $defaultGuardUser instanceof User ? $defaultGuardUser : null;
     }
 }

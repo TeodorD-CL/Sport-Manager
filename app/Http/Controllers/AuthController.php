@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
@@ -17,6 +18,8 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        $this->lowercaseEmail($request);
+
         $credentials = $request->validate([
             'email' => 'required|email',
             'password' => 'required',
@@ -39,6 +42,8 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        $this->lowercaseEmail($request);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -59,6 +64,14 @@ class AuthController extends Controller
         Auth::login($user);
 
         return redirect('/');
+    }
+
+    // Emails are stored lowercase (see User::email()), so lookups and the unique check must use the same form.
+    private function lowercaseEmail(Request $request): void
+    {
+        if (is_string($request->input('email'))) {
+            $request->merge(['email' => Str::lower(trim($request->input('email')))]);
+        }
     }
 
     public function logout(Request $request)

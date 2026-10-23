@@ -4,22 +4,19 @@ import defaultTheme from 'tailwindcss/defaultTheme';
 export default {
     content: [
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
-        './storage/framework/views/*.php',
+        './vendor/livewire/livewire/src/Features/SupportPagination/views/*.blade.php',
         './resources/**/*.blade.php',
         './resources/**/*.js',
-        './app/Filament/**/*.php',
         './app/Livewire/**/*.php',
-        './vendor/filament/**/*.blade.php',
     ],
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['Inter', ...defaultTheme.fontFamily.sans],
+            },
+            colors: {
+                'stone-bg': '#f4f3ed', // Warm off-white from the design
             },
         },
     },
-    plugins: [
-        require('@tailwindcss/forms'),
-        require('@tailwindcss/typography'),
-    ],
 };

@@ -29,7 +29,7 @@
                     <div x-show="open" x-cloak x-transition.opacity class="absolute top-full left-0 mt-0 w-full min-w-[200px] bg-[#f4f3ed] border border-black z-50">
                         <button type="button" wire:click="$set('city', '')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black hover:bg-black hover:text-white transition-colors {{ $city === '' ? 'bg-black text-white' : 'text-black' }}">All cities</button>
                         @foreach($cities as $c)
-                            <button type="button" wire:click="$set('city', '{{ $c }}')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black last:border-b-0 hover:bg-black hover:text-white transition-colors {{ $city === $c ? 'bg-black text-white' : 'text-black' }}">{{ $c }}</button>
+                            <button type="button" wire:click="$set('city', @js($c))" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black last:border-b-0 hover:bg-black hover:text-white transition-colors {{ $city === $c ? 'bg-black text-white' : 'text-black' }}">{{ $c }}</button>
                         @endforeach
                     </div>
                 </div>
@@ -44,10 +44,9 @@
                     
                     <div x-show="open" x-cloak x-transition.opacity class="absolute top-full left-0 mt-0 w-full min-w-[200px] bg-[#f4f3ed] border border-black z-50">
                         <button type="button" wire:click="$set('type', '')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black hover:bg-black hover:text-white transition-colors {{ $type === '' ? 'bg-black text-white' : 'text-black' }}">All sports</button>
-                        <button type="button" wire:click="$set('type', 'Football')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black hover:bg-black hover:text-white transition-colors {{ $type === 'Football' ? 'bg-black text-white' : 'text-black' }}">Football</button>
-                        <button type="button" wire:click="$set('type', 'Tennis')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black hover:bg-black hover:text-white transition-colors {{ $type === 'Tennis' ? 'bg-black text-white' : 'text-black' }}">Tennis</button>
-                        <button type="button" wire:click="$set('type', 'Padel')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black hover:bg-black hover:text-white transition-colors {{ $type === 'Padel' ? 'bg-black text-white' : 'text-black' }}">Padel</button>
-                        <button type="button" wire:click="$set('type', 'Swimming')" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold hover:bg-black hover:text-white transition-colors {{ $type === 'Swimming' ? 'bg-black text-white' : 'text-black' }}">Swimming</button>
+                        @foreach(\App\Enums\CourtType::cases() as $sport)
+                            <button type="button" wire:click="$set('type', @js($sport->value))" @click="open = false" class="w-full text-left px-4 py-3 text-[13px] font-bold border-b border-black last:border-b-0 hover:bg-black hover:text-white transition-colors {{ $type === $sport->value ? 'bg-black text-white' : 'text-black' }}">{{ $sport->value }}</button>
+                        @endforeach
                     </div>
                 </div>
 
@@ -103,7 +102,7 @@
 
                     <div x-show="open" x-cloak x-transition.opacity class="absolute top-full right-0 mt-2 w-48 bg-[#f4f3ed] border border-black z-50 shadow-xl">
                         @foreach($sortLabels as $val => $label)
-                            <button type="button" wire:click="$set('sort', '{{ $val }}')" @click="open = false" class="w-full text-left px-4 py-2 text-[12px] font-bold border-b border-black last:border-b-0 hover:bg-black hover:text-white transition-colors {{ $sort === $val ? 'bg-black text-white' : 'text-black' }}">{{ $label }}</button>
+                            <button type="button" wire:click="$set('sort', @js($val))" @click="open = false" class="w-full text-left px-4 py-2 text-[12px] font-bold border-b border-black last:border-b-0 hover:bg-black hover:text-white transition-colors {{ $sort === $val ? 'bg-black text-white' : 'text-black' }}">{{ $label }}</button>
                         @endforeach
                     </div>
                 </div>
@@ -158,8 +157,7 @@
                             <p class="text-[12px] text-gray-500 mb-2">{{ $facility->city }}</p>
                             
                             <div class="flex flex-wrap gap-2 text-[10px] text-gray-500 mb-4 uppercase tracking-widest">
-                                @php $amenitiesStr = $facility->amenities->take(3)->pluck('name')->join(' &nbsp;&bull;&nbsp; ') @endphp
-                                {!! $amenitiesStr !!}
+                                {!! $facility->amenities->take(3)->pluck('name')->map(fn ($name) => e($name))->join(' &nbsp;&bull;&nbsp; ') !!}
                                 @if($facility->amenities->count() > 3)
                                     &nbsp;&bull;&nbsp; +{{ $facility->amenities->count() - 3 }}
                                 @endif

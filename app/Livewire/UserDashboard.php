@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Booking;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -13,10 +14,10 @@ class UserDashboard extends Component
 
     public function cancelBooking($bookingId)
     {
-        $booking = Booking::where('id', $bookingId)
+        $booking = is_string($bookingId) && Str::isUuid($bookingId) ? Booking::where('id', $bookingId)
             ->where('user_id', auth()->id())
             ->where('status', 'confirmed')
-            ->first();
+            ->first() : null;
 
         if (!$booking) {
             session()->flash('error', 'Booking not found or already cancelled.');

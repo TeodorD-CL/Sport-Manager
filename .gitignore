@@ -50,3 +50,6 @@ pnpm-debug.log*
 /.local/
 /.codegraph/
 /.playwright-mcp/
+
+# Local tool config (composer, psysh)
+/.config/

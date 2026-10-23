@@ -1,15 +1,22 @@
 services:
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        COMPOSER_FLAGS: ""  # keep dev dependencies locally
     ports:
       - "8000:8000"
     volumes:
-      # Bind-mount source so edits on the host are reflected immediately
-      - .:/var/www/html
+      # Bind-mount source so edits on the host are reflected immediately.
+      # This hides the image's built assets: run `npm run dev` (or `npm run build`) on the host.
+      - .:/app
       # Keep vendor from the image — don't let the (empty) host folder shadow it
-      - vendor:/var/www/html/vendor
+      - vendor:/app/vendor
     environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - RUN_SCHEDULER=true
       - DB_CONNECTION=pgsql
       - DB_HOST=db
       - DB_PORT=5432
@@ -17,27 +24,6 @@ services:
       - DB_USERNAME=postgres
       - DB_PASSWORD=secret
     depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
-  queue:
-    build: .
-    volumes:
-      - .:/var/www/html
-      - vendor:/var/www/html/vendor
-    environment:
-      - RUN_MIGRATIONS=false
-      - DB_CONNECTION=pgsql
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_DATABASE=sport_manager
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=secret
-    command: ["php", "artisan", "queue:work", "--tries=1", "--sleep=3"]
-    depends_on:
-      app:
-        condition: service_started
       db:
         condition: service_healthy
     restart: unless-stopped

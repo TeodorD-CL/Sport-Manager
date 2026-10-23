@@ -1,56 +1,44 @@
-FROM php:8.2-cli
+# --- PHP app: FrankenPHP serves requests on multiple threads (php artisan serve is single-threaded and dev-only) ---
+FROM dunglas/frankenphp:1-php8.2-bookworm AS app
 
-# System dependencies (libjpeg + libfreetype required before configuring gd)
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    zip \
-    unzip \
-    libpq-dev \
-    libsqlite3-dev \
-    libpng-dev \
-    libjpeg62-turbo-dev \
-    libfreetype6-dev \
-    libxml2-dev \
-    libzip-dev \
-    libonig-dev \
-    libicu-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && install-php-extensions pdo_pgsql pdo_sqlite gd zip intl bcmath pcntl exif opcache
 
-# gd must be configured before install to pick up jpeg/freetype
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg
-
-# PHP extensions required by Laravel + this app
-# opcache is already compiled in the base image — use enable, not install
-RUN docker-php-ext-install \
-    pdo \
-    pdo_pgsql \
-    pdo_sqlite \
-    mbstring \
-    xml \
-    bcmath \
-    gd \
-    zip \
-    pcntl \
-    intl \
-    exif
-
-RUN docker-php-ext-enable opcache
-
-# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-WORKDIR /var/www/html
+WORKDIR /app
+
+# docker-compose passes an empty value to keep dev dependencies (phpunit) for local work.
+ARG COMPOSER_FLAGS="--no-dev"
 
 # Install PHP dependencies as a separate layer so it caches well
 COPY composer.json composer.lock ./
-RUN composer install --no-scripts --no-autoloader --no-interaction
+RUN composer install $COMPOSER_FLAGS --no-scripts --no-autoloader --no-interaction --prefer-dist
 
 # Copy application source
 COPY . .
 
 # Finalise autoloader with full source present
-RUN composer dump-autoload --optimize
+RUN composer dump-autoload --optimize $COMPOSER_FLAGS
+
+# --- Frontend: Tailwind + flatpickr compiled by Vite ---
+FROM node:20-alpine AS assets
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY vite.config.js tailwind.config.js postcss.config.js ./
+COPY resources ./resources
+COPY app/Livewire ./app/Livewire
+# Tailwind scans the pagination views for class names.
+COPY --from=app /app/vendor/laravel/framework/src/Illuminate/Pagination/resources/views ./vendor/laravel/framework/src/Illuminate/Pagination/resources/views
+COPY --from=app /app/vendor/livewire/livewire/src/Features/SupportPagination/views ./vendor/livewire/livewire/src/Features/SupportPagination/views
+RUN npm run build
+
+# --- Final image ---
+FROM app
+
+COPY --from=assets /app/public/build ./public/build
 
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
@@ -58,4 +46,4 @@ RUN chmod +x /entrypoint.sh
 EXPOSE 8000
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
+CMD ["sh", "-c", "exec frankenphp php-server --root public --listen :${PORT:-8000}"]

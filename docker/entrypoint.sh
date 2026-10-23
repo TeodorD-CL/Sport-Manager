@@ -69,7 +69,22 @@ if is_truthy "${RUN_SEED:-false}"; then
     php artisan db:seed --force
 fi
 
+# Uploaded images live on the "public" disk and are served from /storage.
+# Note: the container disk is not persistent on Render, so uploads are lost on redeploy until a persistent disk or S3 is used.
+[ -e public/storage ] || php artisan storage:link
+
 # Publish Filament assets
 php artisan filament:assets
+
+if [ "${APP_ENV:-production}" = "production" ]; then
+    php artisan optimize
+    php artisan filament:optimize
+fi
+
+# Runs scheduled tasks (bookings:complete) next to the web server, because Render's free plan has no background workers.
+# ponytail: not restarted if it crashes; move to a separate worker or cron job on a paid plan.
+if is_truthy "${RUN_SCHEDULER:-false}"; then
+    php artisan schedule:work &
+fi
 
 exec "$@"

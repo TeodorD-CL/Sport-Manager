@@ -83,7 +83,7 @@ class ReviewTest extends TestCase
             ->set('rating', 5)
             ->set('comment', 'Looks nice.')
             ->call('submit')
-            ->assertSee('You need a booking at this facility before leaving a review.');
+            ->assertSee('You can review this facility after your first booking here has taken place.');
 
         $this->assertDatabaseMissing('reviews', [
             'user_id' => $user->id,
@@ -103,7 +103,7 @@ class ReviewTest extends TestCase
             ->set('rating', 5)
             ->set('comment', 'The cancelled booking should not count.')
             ->call('submit')
-            ->assertSee('You need a booking at this facility before leaving a review.');
+            ->assertSee('You can review this facility after your first booking here has taken place.');
 
         $this->assertDatabaseMissing('reviews', [
             'user_id' => $user->id,
@@ -205,5 +205,32 @@ class ReviewTest extends TestCase
         $this->assertNotNull($review);
         $this->assertSame(5, $review->rating);
         $this->assertSame('Excellent facility.', $review->comment);
+    }
+
+    public function test_user_with_only_a_future_booking_cannot_leave_review(): void
+    {
+        $user = User::factory()->create();
+        $facility = $this->createFacility();
+        $court = $this->createCourt($facility);
+        $this->createBooking($court, $user)->update(['start_time' => now()->addDay(), 'end_time' => now()->addDay()->addHour()]);
+
+        Livewire::actingAs($user)
+            ->test(LeaveReview::class, ['facilityId' => $facility->id])
+            ->call('submit')
+            ->assertSee('You can review this facility after your first booking here has taken place.');
+
+        $this->assertDatabaseCount('reviews', 0);
+    }
+
+    public function test_facility_id_cannot_be_changed_by_the_browser(): void
+    {
+        $user = User::factory()->create();
+        $facility = $this->createFacility();
+
+        $this->expectException(\Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException::class);
+
+        Livewire::actingAs($user)
+            ->test(LeaveReview::class, ['facilityId' => $facility->id])
+            ->set('facilityId', $this->createFacility()->id);
     }
 }

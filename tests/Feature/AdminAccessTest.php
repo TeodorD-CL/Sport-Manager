@@ -82,7 +82,7 @@ class AdminAccessTest extends TestCase
         $manager->assignRole('facility_manager');
         $manager->managedFacilities()->attach($facilityA->id);
 
-        $this->actingAs($manager, 'admin');
+        $this->actingAs($manager);
 
         $visibleFacilityIds = FacilityResource::getEloquentQuery()->pluck('id')->all();
 
@@ -99,7 +99,7 @@ class AdminAccessTest extends TestCase
         $facility = $this->createFacility('Managed Facility');
         $manager->managedFacilities()->attach($facility->id);
 
-        $this->actingAs($manager, 'admin');
+        $this->actingAs($manager);
 
         $this->assertFalse(AmenityResource::canViewAny());
     }
@@ -129,7 +129,7 @@ class AdminAccessTest extends TestCase
             'suitable_for' => ['Tennis'],
         ]);
 
-        $this->actingAs($manager, 'admin');
+        $this->actingAs($manager);
 
         $visibleRentalIds = RentalResource::getEloquentQuery()->pluck('id')->all();
 
@@ -166,7 +166,7 @@ class AdminAccessTest extends TestCase
             'comment' => 'Good place',
         ]);
 
-        $this->actingAs($manager, 'admin');
+        $this->actingAs($manager);
 
         $visibleReviewIds = ReviewResource::getEloquentQuery()->pluck('id')->all();
 

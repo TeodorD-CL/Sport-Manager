@@ -18,12 +18,12 @@
     @else
         <form wire:submit="submit" class="space-y-6">
             <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Overall Rating</label>
-                <div class="flex gap-2">
+                <p id="rating-label" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Overall Rating</p>
+                <div class="flex gap-2" role="radiogroup" aria-labelledby="rating-label">
                     @for($i = 1; $i <= 5; $i++)
                         <label class="cursor-pointer group">
-                            <input type="radio" wire:model.live="rating" value="{{ $i }}" class="sr-only">
-                            <span class="text-3xl {{ $i <= $rating ? 'text-black' : 'text-gray-300 group-hover:text-gray-500' }}">★</span>
+                            <input type="radio" wire:model.live="rating" value="{{ $i }}" class="sr-only peer" aria-label="{{ $i }} {{ Str::plural('star', $i) }}">
+                            <span aria-hidden="true" class="text-3xl peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-black {{ $i <= $rating ? 'text-black' : 'text-gray-300 group-hover:text-gray-500' }}">★</span>
                         </label>
                     @endfor
                 </div>
@@ -31,8 +31,8 @@
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Your Feedback</label>
-                <textarea wire:model="comment" rows="4"
+                <label for="review-comment" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Your Feedback</label>
+                <textarea id="review-comment" wire:model="comment" rows="4"
                           class="w-full border border-gray-300 p-4 text-black focus:outline-none focus:border-black focus:ring-1 focus:ring-black rounded-none resize-none"
                           placeholder="What did you think of the courts and facilities?"></textarea>
                 @error('comment')<p class="mt-2 text-xs font-bold text-red-600">{{ $message }}</p>@enderror

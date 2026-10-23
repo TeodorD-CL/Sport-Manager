@@ -65,7 +65,7 @@ class ManagersRelationManager extends RelationManager
 
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
-        $user = auth('admin')->user();
+        $user = auth()->user();
 
         return $user instanceof User && $user->isSuperAdmin();
     }

@@ -4,25 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Sport Manager</title>
+    <title>{{ $title ?? 'Sport Manager' }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: {
-                        'stone-bg': '#f4f3ed', // Warm off-white from the design
-                    }
-                }
-            }
-        }
-    </script>
-
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
     @livewireStyles
     <style>
@@ -37,8 +22,13 @@
             background-image: none;
         }
         
-        input:focus, select:focus, textarea:focus, button:focus {
+        /* Mouse clicks get no outline; keyboard focus keeps a visible one. */
+        input:focus:not(:focus-visible), select:focus:not(:focus-visible), textarea:focus:not(:focus-visible), button:focus:not(:focus-visible) {
             outline: none;
+        }
+        a:focus-visible, button:focus-visible {
+            outline: 2px solid #111;
+            outline-offset: 2px;
         }
 
         /* Brutalist Flatpickr Theme */
@@ -101,7 +91,7 @@
 <body class="font-sans antialiased min-h-screen flex flex-col">
 
     <!-- Navigation -->
-    <header class="border-b border-black">
+    <header class="border-b border-black" x-data="{ open: false }">
         <div class="max-w-7xl mx-auto px-6">
             <div class="flex justify-between items-center h-[72px]">
                 <!-- Logo -->
@@ -111,7 +101,7 @@
                 </a>
 
                 <!-- Desktop nav -->
-                <nav class="hidden md:flex items-center gap-8" x-data="{}">
+                <nav class="hidden md:flex items-center gap-8">
                     <a href="/" class="text-[13px] font-bold text-black border-b-2 {{ request()->is('/') ? 'border-black' : 'border-transparent hover:border-black' }} pb-1 mt-1">Browse</a>
                     
                     @auth
@@ -131,11 +121,30 @@
                 </nav>
 
                 <!-- Mobile hamburger -->
-                <button @click="open = !open" class="md:hidden p-2 text-black" x-data="{ open: false }">
+                <button @click="open = !open" class="md:hidden p-2 text-black" :aria-expanded="open" aria-controls="mobile-menu" aria-label="Menu">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
             </div>
         </div>
+
+        <!-- Mobile nav -->
+        <nav id="mobile-menu" x-show="open" x-cloak @click.outside="open = false" class="md:hidden border-t border-black px-6 py-2 flex flex-col">
+            <a href="/" class="py-3 text-[14px] font-bold text-black border-b border-gray-200">Browse</a>
+            @auth
+                @if(Auth::user()->hasAdminPanelAccess())
+                    <a href="/admin" class="py-3 text-[14px] font-bold text-black border-b border-gray-200">Admin</a>
+                @endif
+                <a href="/dashboard" class="py-3 text-[14px] font-bold text-black border-b border-gray-200">Bookings</a>
+                <a href="/profile" class="py-3 text-[14px] font-bold text-black border-b border-gray-200">Profile</a>
+                <form method="POST" action="/logout">
+                    @csrf
+                    <button type="submit" class="w-full text-left py-3 text-[14px] font-bold text-black">Sign out</button>
+                </form>
+            @else
+                <a href="/login" class="py-3 text-[14px] font-bold text-black border-b border-gray-200">Sign in</a>
+                <a href="/register" class="py-3 text-[14px] font-bold text-black">Register</a>
+            @endauth
+        </nav>
     </header>
 
     <main class="flex-1">

@@ -132,4 +132,27 @@ class BookingPriceTest extends TestCase
 
         $this->assertSame(24000, $price);
     }
+
+    public function test_peak_surcharge_applies_per_hour(): void
+    {
+        // 17:00-19:00: only the 18:00 hour is peak.
+        $price = Booking::calculatePrice(
+            $this->court(10000),
+            $this->monday('17:00'),
+            $this->monday('19:00'),
+        );
+
+        $this->assertSame(22000, $price);
+    }
+
+    public function test_breakdown_lines_add_up_to_the_total(): void
+    {
+        // 855 MKD on a Saturday evening: the weekend line is 102.6 MKD before rounding.
+        $lines = Booking::priceBreakdown($this->court(85500), $this->saturday('18:00'), $this->saturday('19:00'));
+
+        $this->assertSame($lines['total'], $lines['base'] + $lines['peak'] + $lines['weekend'] + $lines['rentals']);
+        foreach (['peak', 'weekend'] as $line) {
+            $this->assertSame(0, $lines[$line] % 100, "$line should be whole MKD");
+        }
+    }
 }

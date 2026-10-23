@@ -2,7 +2,7 @@
 
 Sport Manager is a sports facility booking platform for courts and sports venues in Macedonia. Users can search facilities, view court availability, book time slots, add equipment rentals, manage their bookings, and leave reviews after visiting a facility. Administrators and facility managers use a Filament admin panel to manage facilities, courts, rentals, bookings, reviews, amenities, and schedules.
 
-The project is built with Laravel 11, Livewire 3, Blade, Tailwind CSS via CDN, Filament v3, Spatie permissions, and PostgreSQL (SQLite in-memory for tests).
+The project is built with Laravel 12, Livewire 3, Blade, Tailwind CSS (built with Vite), Filament v3, Spatie permissions, and PostgreSQL (SQLite in-memory for tests).
 
 > **Main documentation:** the product documentation lives in [`docs/Sport-Manager-Documentation.pdf`](docs/Sport-Manager-Documentation.pdf) (source: [`docs/documentation.html`](docs/documentation.html)). This README is the developer quick reference; `PROJECT_DOCUMENTATION.md` holds the older technical reference.
 
@@ -56,17 +56,17 @@ The project is built with Laravel 11, Livewire 3, Blade, Tailwind CSS via CDN, F
 
 | Area | Technology |
 | --- | --- |
-| Backend framework | Laravel 11 |
+| Backend framework | Laravel 12 |
 | PHP version | PHP 8.2 |
-| Frontend | Livewire 3, Blade, Tailwind CSS CDN |
+| Frontend | Livewire 3, Blade, Tailwind CSS and flatpickr built with Vite |
 | Admin panel | Filament v3 |
 | Authorization | Spatie Laravel Permission, Filament Shield |
 | QR codes | SimpleSoftwareIO Simple QRCode |
 | Default database | PostgreSQL (SQLite in-memory for tests) |
-| Test database | In-memory SQLite |
-| Queue, cache, session defaults | Database drivers |
+| Test database | In-memory SQLite, plus PostgreSQL via `phpunit.pgsql.xml` |
+| Cache, session defaults | Database drivers |
 
-Tailwind CSS is loaded through CDN in the main Blade layout, so the public frontend does not require a Vite build step.
+The layout loads compiled assets with `@vite`, so run `npm ci && npm run build` (or `npm run dev`) before opening the site. The Docker image builds them itself.
 
 ## Requirements
 
@@ -75,6 +75,7 @@ For local development without Docker:
 - PHP 8.2 or newer
 - Composer 2.x
 - SQLite support for PHP
+- Node.js 20 and npm
 - Git
 
 Recommended PHP extensions:
@@ -86,7 +87,6 @@ Recommended PHP extensions:
 - `fileinfo`
 - `gd`
 
-Node.js is only needed if you plan to work on compiled frontend assets. The main public UI uses Tailwind through CDN.
 
 ## Run with Docker
 
@@ -102,12 +102,18 @@ The Docker entrypoint:
 - Generates `APP_KEY` if missing.
 - Creates the SQLite database file.
 - Runs migrations on container start.
+- Links `public/storage` so uploaded images are served.
+- In production (`APP_ENV=production`), caches config, routes, views and Filament components.
+
+The image serves the app with FrankenPHP. docker-compose bind-mounts the source over the image, so run `npm run dev` on the host for styles.
 
 After the app is running, seed sample data:
 
 ```bash
 docker-compose exec app php artisan db:seed
 ```
+
+The seeder can run more than once. In production it refuses to run unless `SEED_USER_PASSWORD` is set, and the demo accounts get that password.
 
 Open the app:
 
@@ -126,6 +132,7 @@ Install dependencies:
 
 ```bash
 composer install
+npm ci && npm run build
 ```
 
 Create the environment file:
@@ -165,7 +172,9 @@ The project also includes a Composer dev script:
 composer run dev
 ```
 
-That script starts the Laravel server, queue listener, logs, and Vite process together. For the public-facing Blade and Livewire UI, `php artisan serve` is usually enough.
+That script starts the Laravel server, queue listener, logs, and Vite process together.
+
+Past bookings are marked `completed` by the hourly `bookings:complete` command. Locally, run `php artisan schedule:work` to run it on schedule.
 
 ## Seeded Login Accounts
 
@@ -553,6 +562,12 @@ docker-compose exec app php artisan test
 
 The test suite uses in-memory SQLite through `phpunit.xml`, so tests do not touch the local development database.
 
+Production runs on PostgreSQL, which is stricter about UUIDs and is the only database with the booking overlap constraint. Run the same suite against it (needs an empty `sport_manager_test` database; CI does both):
+
+```bash
+vendor/bin/phpunit -c phpunit.pgsql.xml
+```
+
 Important test coverage:
 
 - Booking price calculations.
@@ -570,12 +585,14 @@ Important test coverage:
 
 ## Deployment Notes
 
-The existing README includes Render deployment notes. The project is prepared for a Docker-based Render deployment with a web service, queue worker, and PostgreSQL database.
+The project is prepared for a Docker-based Render deployment (`render.yaml`) with one web service and a PostgreSQL database. Scheduled tasks run inside the web container (`RUN_SCHEDULER=true`), because Render's free plan has no background workers. The health check is Laravel's `/up` route.
 
 General production reminders:
 
 - Use a real database such as PostgreSQL or MySQL instead of SQLite.
-- Set the same `APP_KEY` for the web and worker services.
+- Set a fixed `APP_KEY`.
+- Uploaded images go to the `public` disk. Render's container disk is wiped on every deploy, so attach a persistent disk or move uploads to S3 before relying on them.
+- The booking migration adds a PostgreSQL exclusion constraint against overlapping bookings. It fails if overlapping active bookings already exist; cancel or move them first.
 - Keep `APP_DEBUG=false`.
 - Configure `APP_URL` to the deployed domain.
 - Run migrations during deployment.
@@ -623,10 +640,10 @@ Check:
 
 ### Public frontend styling is missing
 
-The public frontend uses Tailwind CSS from CDN in the Blade layout. Check the canonical layout:
+The layout loads Vite assets. Build them:
 
-```text
-resources/views/components/layouts/app.blade.php
+```bash
+npm ci && npm run build
 ```
 
 ### Tests fail because of a dirty local database
@@ -649,10 +666,10 @@ The automated tests should use in-memory SQLite. Confirm that `phpunit.xml` cont
 - Use `array_key_exists` when checking aggregate attributes that may intentionally be null.
 - Add tests for booking, pricing, authorization, or review behavior when changing those areas.
 
-## Project Evaluation
+## Known Limitations
 
-Sport Manager is a complete sports facility management platform developed using modern Laravel ecosystem technologies. The application successfully implements core business requirements, including facility discovery, court reservations, equipment rentals, role-based administration, and user reviews.
-
-The project demonstrates strong software engineering principles through its modular architecture, secure authorization system, transactional booking workflow, and comprehensive testing strategy. The use of Laravel, Livewire, and Filament results in a maintainable, scalable, and user-friendly solution suitable for real-world deployment.
-
-Overall, the project meets professional development standards and represents a practical and well-executed implementation of a sports venue booking system.
+- Surcharges (+20% from 18:00 to 22:00, +10% at weekends) are the same for every facility.
+- There is no password reset or email verification yet. Both need a real mail provider first.
+- Bookings are confirmed instantly and free; there are no payments or deposits.
+- Uploaded images are lost on redeploy until persistent storage (a disk or S3) is configured.
+- The homepage date filter counts bookings, not booked hours, so multi-hour admin bookings make a court look freer than it is.

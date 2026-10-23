@@ -1,4 +1,9 @@
 <div x-data="{ 
+    open: false,
+    toggle() {
+        this.open = !this.open;
+        if (this.open) { this.$nextTick(() => this.scrollToBottom()); }
+    },
     scrollToBottom() { 
         const container = this.$refs.messagesContainer;
         if (container) {
@@ -16,24 +21,21 @@ x-init="
 class="fixed bottom-6 right-6 z-50 font-sans">
 
     <!-- Floating Chat Toggle Button -->
-    <button wire:click="toggleChat" 
+    <button @click="toggle()" :aria-expanded="open" aria-label="Toggle chat assistant"
             class="flex items-center justify-center w-14 h-14 bg-black text-[#f4f3ed] border-[3px] border-black rounded-none shadow-[4px_4px_0_rgba(0,0,0,1)] hover:shadow-[2px_2px_0_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-150 focus:outline-none">
-        @if($isOpen)
-            <!-- Close Icon -->
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-        @else
-            <!-- Chat Bubble Icon -->
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-            </svg>
-        @endif
+        <!-- Close Icon -->
+        <svg x-show="open" x-cloak class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+        <!-- Chat Bubble Icon -->
+        <svg x-show="!open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+        </svg>
     </button>
 
     <!-- Chat Box Widget -->
     <div x-cloak 
-         x-show="$wire.isOpen" 
+         x-show="open" 
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 translate-y-4 scale-95"
          x-transition:enter-end="opacity-100 translate-y-0 scale-100"
@@ -60,7 +62,7 @@ class="fixed bottom-6 right-6 z-50 font-sans">
                 </button>
                 
                 <!-- Close Button -->
-                <button wire:click="toggleChat" 
+                <button @click="toggle()" aria-label="Close chat"
                         class="text-gray-400 hover:text-white transition-colors duration-150 focus:outline-none">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
@@ -147,7 +149,7 @@ class="fixed bottom-6 right-6 z-50 font-sans">
         <!-- Suggestion Chips -->
         <div class="px-4 py-2 bg-[#f4f3ed] border-t-[2px] border-black flex flex-wrap gap-1.5 select-none">
             @foreach($suggestions as $suggestion)
-                <button wire:click="sendPreset('{{ addslashes($suggestion) }}')"
+                <button wire:click="sendPreset(@js($suggestion))"
                         class="bg-white hover:bg-black hover:text-white text-black font-semibold text-[10px] py-1.5 px-2.5 border border-black transition-all duration-150 active:translate-y-0.5">
                     {{ $suggestion }}
                 </button>
@@ -161,15 +163,16 @@ class="fixed bottom-6 right-6 z-50 font-sans">
                    wire:model="message" 
                    placeholder="Ask Sporty about courts, rules, prices..." 
                    class="flex-1 px-3 py-2 text-xs border-[2px] border-black bg-[#f4f3ed] text-black placeholder-gray-500 focus:bg-white focus:outline-none rounded-none" 
-                   required>
+                   maxlength="500" aria-label="Message" required>
             <button type="submit" 
                     class="bg-black hover:bg-gray-800 text-white font-bold text-xs px-4 py-2 border-[2px] border-black hover:shadow-[1px_1px_0_rgba(0,0,0,1)] active:translate-y-0.5 transition-all rounded-none">
                 Send
             </button>
         </form>
+        @error('message') <p class="bg-white px-3 pb-2 text-[10px] font-bold text-red-600">{{ $message }}</p> @enderror
 
         <!-- API status info -->
-        @if(!config('services.gemini.key') && !env('GEMINI_API_KEY'))
+        @if(!config('services.gemini.key'))
             <div class="bg-amber-100 text-amber-900 border-t border-black px-3 py-1.5 text-[9px] font-semibold text-center select-none">
                 💡 Demo Mode active. Set <code class="bg-amber-200 px-1 py-0.5 rounded">GEMINI_API_KEY</code> in `.env` to enable full smart AI.
             </div>

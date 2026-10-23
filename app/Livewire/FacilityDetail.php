@@ -2,13 +2,13 @@
 
 namespace App\Livewire;
 
+use App\Exceptions\BookingException;
 use App\Models\Booking;
+use App\Models\Court;
 use App\Models\Facility;
-use App\Models\Rental;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -23,15 +23,19 @@ class FacilityDetail extends Component
     public ?string $selectedCourtId = null;
     public array $selectedSlot = [];
     public array $selectedRentals = [];
-    public int $calculatedPrice = 0;
-    public $rentals = [];
+
+    // Kept as plain data so toggling an extra or re-rendering doesn't query reviews and rentals again.
+    #[Locked]
+    public array $reviewSummary = [];
+    #[Locked]
+    public array $rentalOptions = [];
 
     public function mount($id)
     {
-        $this->facility = Facility::with(['courts', 'amenities', 'reviews.user'])->findOrFail($id);
+        $this->facility = Facility::with(['courts', 'amenities'])->findOrFail($id);
         $this->selectedDate = Carbon::today()->format('Y-m-d');
         $this->loadAvailableSlots();
-        $this->rentals = collect();
+        $this->refreshReviews();
     }
 
     public function updatedSelectedDate()
@@ -41,107 +45,55 @@ class FacilityDetail extends Component
 
     public function loadAvailableSlots()
     {
-        $slots = [];
         $parsed = \DateTime::createFromFormat('Y-m-d', $this->selectedDate ?? '');
         if (!$parsed || $parsed->format('Y-m-d') !== $this->selectedDate) {
             $this->availableSlots = [];
             return;
         }
-        $date = Carbon::instance($parsed);
-        $dayStart = $date->copy()->startOfDay();
-        $dayEnd = $date->copy()->endOfDay();
 
-        $courtIds = $this->facility->courts->pluck('id');
+        // Clones carry the facility for its opening hours without changing the models Livewire stores.
+        $courts = $this->facility->courts->map(fn (Court $court) => (clone $court)->setRelation('facility', $this->facility));
+        $slotsByCourt = Court::slotsOn($courts, Carbon::instance($parsed));
 
-        $bookingsByCourt = Booking::whereIn('court_id', $courtIds)
-            ->where('status', '!=', 'cancelled')
-            ->where('start_time', '<', $dayEnd)
-            ->where('end_time', '>', $dayStart)
-            ->get(['court_id', 'start_time', 'end_time'])
-            ->groupBy('court_id');
-
+        $this->availableSlots = [];
         foreach ($this->facility->courts as $court) {
-            $courtSlots = [];
-            $courtBookings = $bookingsByCourt->get($court->id, collect());
-            $openingHour = max(0, min(23, (int) $this->facility->opening_hour));
-            $closingHour = max($openingHour + 1, min(24, (int) $this->facility->closing_hour));
-
-            for ($hour = $openingHour; $hour < $closingHour; $hour++) {
-                $startTime = $date->copy()->setHour($hour)->setMinute(0)->setSecond(0);
-                $endTime = $startTime->copy()->addHour();
-
-                $isBooked = $courtBookings->some(
-                    fn ($b) => $b->start_time < $endTime && $b->end_time > $startTime
-                );
-
-                $courtSlots[] = [
-                    'start' => $startTime->format('H:i'),
-                    'end' => $endTime->format('H:i'),
-                    'available' => !$isBooked && $startTime->isFuture(),
-                    'price' => $court->base_price_per_hour,
-                ];
-            }
-
-            $slots[$court->id] = [
+            $this->availableSlots[$court->id] = [
                 'court' => $court,
-                'slots' => $courtSlots,
+                'slots' => $slotsByCourt[$court->id],
             ];
         }
-
-        $this->availableSlots = $slots;
     }
 
     #[On('reviewSubmitted')]
     public function refreshReviews(): void
     {
-        $this->facility->load('reviews.user');
+        $stats = $this->facility->reviews()->selectRaw('avg(rating) as average, count(*) as total')->first();
+
+        $this->reviewSummary = [
+            'average' => round((float) $stats->average, 1),
+            'count' => (int) $stats->total,
+            'latest' => $this->facility->reviews()->with('user:id,name')->latest()->take(10)->get()
+                ->map(fn ($review) => ['author' => $review->user?->name ?? 'Anonymous', 'rating' => $review->rating, 'comment' => $review->comment])
+                ->all(),
+        ];
     }
 
-    public function selectSlot($courtId, $slot)
+    public function selectSlot($courtId, $start)
     {
+        $slot = is_string($start) ? Booking::parseSlot($this->selectedDate, $start, $start) : null;
+        if (!$slot || !$this->facility->courts->contains('id', $courtId)) {
+            return;
+        }
+
+        $end = $slot[0]->copy()->addHour();
+
         $this->selectedCourtId = $courtId;
-        $this->selectedSlot = $slot;
+        $this->selectedSlot = ['start' => $start, 'end' => $end->isSameDay($slot[0]) ? $end->format('H:i') : '24:00'];
         $this->selectedRentals = [];
+        $this->rentalOptions = $this->facility->courts->firstWhere('id', $courtId)->availableRentals()
+            ->map(fn ($rental) => $rental->only(['id', 'name', 'price']))
+            ->all();
         $this->showBookingModal = true;
-
-        $court = $this->facility->courts->firstWhere('id', $courtId);
-        if ($court) {
-            $this->rentals = Rental::query()
-                ->where(function ($query) {
-                    $query->where('facility_id', $this->facility->id)
-                        ->orWhereNull('facility_id');
-                })
-                ->get()
-                ->filter(fn ($rental) => $rental->isSuitableFor($court->type));
-        } else {
-            $this->rentals = collect();
-        }
-
-        $this->calculateTotal();
-    }
-
-    public function calculateTotal()
-    {
-        if (!$this->selectedCourtId || empty($this->selectedSlot)) {
-            $this->calculatedPrice = 0;
-            return;
-        }
-
-        $court = $this->facility->courts->firstWhere('id', $this->selectedCourtId);
-        if (!$court) {
-            $this->calculatedPrice = 0;
-            return;
-        }
-
-        $startTime = Carbon::parse($this->selectedDate . ' ' . $this->selectedSlot['start']);
-        $endTime = Carbon::parse($this->selectedDate . ' ' . $this->selectedSlot['end']);
-
-        $rentals = [];
-        foreach ($this->selectedRentals as $rentalId) {
-            $rentals[] = ['id' => $rentalId, 'quantity' => 1];
-        }
-
-        $this->calculatedPrice = Booking::calculatePrice($court, $startTime, $endTime, $rentals);
     }
 
     public function toggleRental($rentalId)
@@ -151,7 +103,6 @@ class FacilityDetail extends Component
         } else {
             $this->selectedRentals[] = $rentalId;
         }
-        $this->calculateTotal();
     }
 
     public function confirmBooking()
@@ -161,84 +112,19 @@ class FacilityDetail extends Component
         }
 
         $court = $this->facility->courts->firstWhere('id', $this->selectedCourtId);
-        if (!$court) {
-            session()->flash('error', 'Invalid court selection.');
-            $this->showBookingModal = false;
-            return;
-        }
+        $slot = $this->parsedSelectedSlot();
 
-        if (empty($this->selectedSlot) || !isset($this->selectedSlot['start']) || !isset($this->selectedSlot['end'])) {
-            session()->flash('error', 'Invalid time slot.');
-            $this->showBookingModal = false;
-            return;
-        }
+        try {
+            if (!$court || !$slot) {
+                throw new BookingException('Invalid booking selection.');
+            }
 
-        $openingHour = max(0, min(23, (int) $this->facility->opening_hour));
-        $closingHour = max($openingHour + 1, min(24, (int) $this->facility->closing_hour));
-        $startHour = (int) explode(':', $this->selectedSlot['start'])[0];
-        $endHour = (int) explode(':', $this->selectedSlot['end'])[0];
-
-        if ($startHour < $openingHour || $endHour > $closingHour || $startHour >= $closingHour) {
-            session()->flash('error', "Invalid booking hours. Must be between {$openingHour}:00 and {$closingHour}:00.");
-            $this->showBookingModal = false;
-            return;
-        }
-
-        $startTime = Carbon::parse($this->selectedDate . ' ' . $this->selectedSlot['start']);
-        $endTime = Carbon::parse($this->selectedDate . ' ' . $this->selectedSlot['end']);
-
-        if ($startTime->isPast()) {
-            session()->flash('error', 'Cannot book a time slot in the past.');
+            Booking::book($court, $slot[0], $slot[1], auth()->user(), $this->selectedRentals);
+        } catch (BookingException $e) {
+            session()->flash('error', $e->getMessage());
             $this->showBookingModal = false;
             $this->loadAvailableSlots();
             return;
-        }
-
-        $rentals = [];
-        foreach ($this->selectedRentals as $rentalId) {
-            $rentals[] = ['id' => $rentalId, 'quantity' => 1];
-        }
-
-        try {
-            $booking = DB::transaction(function () use ($court, $startTime, $endTime, $rentals) {
-                $isBooked = Booking::where('court_id', $court->id)
-                    ->where('status', '!=', 'cancelled')
-                    ->where('start_time', '<', $endTime)
-                    ->where('end_time', '>', $startTime)
-                    ->lockForUpdate()
-                    ->exists();
-
-                if ($isBooked) {
-                    throw new \RuntimeException('slot_taken');
-                }
-
-                $totalPrice = Booking::calculatePrice($court, $startTime, $endTime, $rentals);
-
-                $newBooking = Booking::create([
-                    'user_id' => auth()->id(),
-                    'court_id' => $court->id,
-                    'start_time' => $startTime,
-                    'end_time' => $endTime,
-                    'status' => 'confirmed',
-                    'total_price' => $totalPrice,
-                    'qr_code' => Str::uuid()->toString(),
-                ]);
-
-                foreach ($rentals as $rentalData) {
-                    $newBooking->rentals()->attach($rentalData['id'], ['quantity' => 1]);
-                }
-
-                return $newBooking;
-            });
-        } catch (\RuntimeException $e) {
-            // A concurrent booking that slipped past the overlap check hits the unique (court, start, end) constraint.
-            if ($e->getMessage() === 'slot_taken' || $e instanceof \Illuminate\Database\UniqueConstraintViolationException) {
-                session()->flash('error', 'This slot is no longer available.');
-                $this->showBookingModal = false;
-                $this->loadAvailableSlots();
-                return;
-            }
-            throw $e;
         }
 
         $this->showBookingModal = false;
@@ -246,8 +132,38 @@ class FacilityDetail extends Component
         return redirect()->route('dashboard')->with('success', 'Booking confirmed successfully!');
     }
 
+    /** The selected slot as [start, end], or null if the client sent something malformed. */
+    private function parsedSelectedSlot(): ?array
+    {
+        $start = $this->selectedSlot['start'] ?? null;
+        $end = $this->selectedSlot['end'] ?? null;
+
+        return is_string($start) && is_string($end)
+            ? Booking::parseSlot($this->selectedDate, $start, $end)
+            : null;
+    }
+
     public function render()
     {
-        return view('livewire.facility-detail');
+        $court = $this->facility->courts->firstWhere('id', $this->selectedCourtId);
+        $slot = $this->parsedSelectedSlot();
+        $rentals = collect($this->rentalOptions)->map(fn (array $rental) => (object) $rental);
+        $breakdown = null;
+
+        if ($this->showBookingModal && $court && $slot && $slot[1]->gt($slot[0])) {
+            // Display only: Booking::book() prices the booking again from the database.
+            $breakdown = Booking::priceBreakdown($court, $slot[0], $slot[1]);
+            $breakdown['rentals'] = $rentals->whereIn('id', $this->selectedRentals)->sum('price');
+            $breakdown['total'] += $breakdown['rentals'];
+        }
+
+        return view('livewire.facility-detail', [
+            'selectedCourt' => $court,
+            'rentals' => $rentals,
+            'breakdown' => $breakdown,
+            'avgRating' => $this->reviewSummary['average'],
+            'reviewCount' => $this->reviewSummary['count'],
+            'reviews' => collect($this->reviewSummary['latest'])->map(fn (array $review) => (object) $review),
+        ])->title($this->facility->name . ' – Sport Manager');
     }
 }

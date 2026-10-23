@@ -2,9 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\ScopesToManagedFacilities;
 use App\Filament\Resources\AmenityResource\Pages;
 use App\Models\Amenity;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -14,6 +14,8 @@ use Filament\Tables\Table;
 
 class AmenityResource extends Resource
 {
+    use ScopesToManagedFacilities;
+
     protected static ?string $model = Amenity::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-sparkles';
@@ -34,7 +36,9 @@ class AmenityResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name'),
+                Tables\Columns\TextColumn::make('name')
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('icon'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime(),
@@ -45,7 +49,7 @@ class AmenityResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    static::deleteBulkAction(),
                 ]),
             ]);
     }
@@ -82,18 +86,5 @@ class AmenityResource extends Resource
             'create' => Pages\CreateAmenity::route('/create'),
             'edit' => Pages\EditAmenity::route('/{record}/edit'),
         ];
-    }
-
-    protected static function getCurrentAdminUser(): ?User
-    {
-        $user = auth('admin')->user();
-
-        if ($user instanceof User) {
-            return $user;
-        }
-
-        $defaultGuardUser = auth()->user();
-
-        return $defaultGuardUser instanceof User ? $defaultGuardUser : null;
     }
 }

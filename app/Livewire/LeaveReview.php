@@ -4,10 +4,14 @@ namespace App\Livewire;
 
 use App\Models\Booking;
 use App\Models\Review;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Str;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class LeaveReview extends Component
 {
+    #[Locked]
     public $facilityId;
     public int $rating = 5;
     public string $comment = '';
@@ -23,6 +27,7 @@ class LeaveReview extends Component
 
     public function mount($facilityId)
     {
+        abort_unless(is_string($facilityId) && Str::isUuid($facilityId), 404);
         $this->facilityId = $facilityId;
         $this->alreadyReviewed = auth()->check() && Review::where('user_id', auth()->id())
             ->where('facility_id', $facilityId)
@@ -43,22 +48,31 @@ class LeaveReview extends Component
             return;
         }
 
-        $hasBooked = Booking::where('user_id', auth()->id())
+        // Only a booking that has already been played counts, so nobody can book, review and then cancel.
+        $hasPlayed = Booking::where('user_id', auth()->id())
             ->whereHas('court', fn ($q) => $q->where('facility_id', $this->facilityId))
             ->where('status', '!=', 'cancelled')
+            ->where('end_time', '<', now())
             ->exists();
 
-        if (!$hasBooked) {
-            session()->flash('error', 'You need a booking at this facility before leaving a review.');
+        if (!$hasPlayed) {
+            session()->flash('error', 'You can review this facility after your first booking here has taken place.');
             return;
         }
 
-        Review::create([
-            'user_id' => auth()->id(),
-            'facility_id' => $this->facilityId,
-            'rating' => $this->rating,
-            'comment' => $this->comment,
-        ]);
+        try {
+            Review::create([
+                'user_id' => auth()->id(),
+                'facility_id' => $this->facilityId,
+                'rating' => $this->rating,
+                'comment' => $this->comment,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            // A double submit raced past the check above; the first one was saved.
+            session()->flash('error', 'You have already submitted a review for this facility.');
+            $this->alreadyReviewed = true;
+            return;
+        }
 
         $this->alreadyReviewed = true;
         $this->rating = 5;

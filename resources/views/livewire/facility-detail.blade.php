@@ -1,17 +1,7 @@
 @push('head')
     <meta name="description" content="{{ Str::limit($facility->description ?? $facility->name . ' – book courts in ' . $facility->city . ' on Sport Manager.', 160) }}">
     <meta property="og:title" content="{{ $facility->name }} – Sport Manager">
-    <title>{{ $facility->name }}</title>
 @endpush
-
-@php
-    $heroImg = $facility->courts->first()?->image_path ?? $facility->image_path ?? '/images/sports-hall.jpg';
-    if ($heroImg && !str_starts_with($heroImg, '/') && !str_starts_with($heroImg, 'http')) {
-        $heroImg = '/storage/' . $heroImg;
-    }
-    $avgRating = round($facility->reviews->avg('rating') ?? 0, 1);
-    $reviewCount = $facility->reviews->count();
-@endphp
 
 <div class="bg-white min-h-screen pb-16">
     {{-- Header Section --}}
@@ -112,9 +102,10 @@
                                 <div class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2">
                                     @foreach($data['slots'] as $slot)
                                         @if($slot['available'])
-                                            <button wire:click="selectSlot('{{ $courtId }}', {{ json_encode($slot) }})"
+                                            <button wire:click="selectSlot(@js($courtId), @js($slot['start']))"
                                                     class="py-2 text-sm font-medium border border-black text-black hover:bg-black hover:text-white transition-colors">
                                                 {{ $slot['start'] }}
+                                                <span class="block text-[10px] font-normal">{{ number_format($slot['price'] / 100, 0) }} MKD</span>
                                             </button>
                                         @else
                                             <button disabled class="py-2 text-sm font-medium border border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed line-through">
@@ -129,16 +120,16 @@
                 </div>
 
                 {{-- Reviews --}}
-                @if($facility->reviews->count() > 0 || Auth::check())
+                @if($reviewCount > 0 || Auth::check())
                 <div class="pt-8">
                     <h2 class="text-xl font-bold text-black tracking-tight mb-6 border-b border-black pb-2">Reviews</h2>
                     
-                    @if($facility->reviews->count() > 0)
+                    @if($reviewCount > 0)
                         <div class="space-y-6 mb-10">
-                            @foreach($facility->reviews as $review)
+                            @foreach($reviews as $review)
                             <div class="border-b border-gray-200 pb-6">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="font-bold text-black">{{ $review->user?->name ?? 'Anonymous' }}</span>
+                                    <span class="font-bold text-black">{{ $review->author }}</span>
                                     <div class="text-sm font-bold text-black">★ {{ $review->rating }}</div>
                                 </div>
                                 @if($review->comment)
@@ -183,26 +174,15 @@
     </div>
 
     {{-- Booking Modal --}}
-    @if($showBookingModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    @if($showBookingModal && $breakdown)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4"
+             x-on:keydown.escape.window="$wire.set('showBookingModal', false)">
             <div class="absolute inset-0 bg-black/60" wire:click="$set('showBookingModal', false)"></div>
-            <div class="bg-white border border-gray-300 w-full max-w-md relative z-10 flex flex-col max-h-[90vh]">
-                @php
-                    $selectedCourt = $facility->courts->firstWhere('id', $selectedCourtId);
-                    $startTime = \Carbon\Carbon::parse($selectedDate . ' ' . ($selectedSlot['start'] ?? '00:00'));
-                    $isPeak = (int)$startTime->format('H') >= 18 && (int)$startTime->format('H') < 22;
-                    $isWeekend = $startTime->isWeekend();
-                    $basePrice = $selectedCourt ? $selectedCourt->base_price_per_hour : 0;
-                    $rentalTotal = 0;
-                    foreach ($selectedRentals as $rId) {
-                        $r = is_object($rentals) ? $rentals->firstWhere('id', $rId) : null;
-                        if ($r) $rentalTotal += is_array($r) ? ($r['price'] ?? 0) : $r->price;
-                    }
-                @endphp
-
+            <div class="bg-white border border-gray-300 w-full max-w-md relative z-10 flex flex-col max-h-[90vh]"
+                 role="dialog" aria-modal="true" aria-labelledby="booking-modal-title" x-data x-trap.noscroll="true">
                 <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                    <h3 class="text-lg font-bold text-black tracking-tight">Confirm Booking</h3>
-                    <button wire:click="$set('showBookingModal', false)" class="text-gray-500 hover:text-black">
+                    <h3 id="booking-modal-title" class="text-lg font-bold text-black tracking-tight">Confirm Booking</h3>
+                    <button wire:click="$set('showBookingModal', false)" class="text-gray-500 hover:text-black" aria-label="Close">
                         ✕
                     </button>
                 </div>
@@ -218,13 +198,12 @@
                         <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 border-b border-gray-100 pb-1">Extras</p>
                         <div class="space-y-2">
                             @foreach($rentals as $rental)
-                                @php $rentalId = is_array($rental) ? $rental['id'] : $rental->id; $rentalName = is_array($rental) ? $rental['name'] : $rental->name; $rentalPrice = is_array($rental) ? $rental['price'] : $rental->price; @endphp
-                                <label class="flex items-center justify-between p-3 border border-gray-200 cursor-pointer hover:border-black transition-colors {{ in_array($rentalId, $selectedRentals) ? 'border-black bg-gray-50' : '' }}">
+                                <label class="flex items-center justify-between p-3 border border-gray-200 cursor-pointer hover:border-black transition-colors {{ in_array($rental->id, $selectedRentals) ? 'border-black bg-gray-50' : '' }}">
                                     <div class="flex items-center gap-3">
-                                        <input type="checkbox" wire:click="toggleRental('{{ $rentalId }}')" class="w-4 h-4 border-gray-300 rounded-none text-black focus:ring-black" {{ in_array($rentalId, $selectedRentals) ? 'checked' : '' }}>
-                                        <span class="text-sm font-medium text-black">{{ $rentalName }}</span>
+                                        <input type="checkbox" wire:click="toggleRental(@js($rental->id))" class="w-4 h-4 border-gray-300 rounded-none text-black focus:ring-black" {{ in_array($rental->id, $selectedRentals) ? 'checked' : '' }}>
+                                        <span class="text-sm font-medium text-black">{{ $rental->name }}</span>
                                     </div>
-                                    <span class="text-sm font-bold text-black">+{{ number_format($rentalPrice / 100, 0) }}</span>
+                                    <span class="text-sm font-bold text-black">+{{ number_format($rental->price / 100, 0) }}</span>
                                 </label>
                             @endforeach
                         </div>
@@ -236,30 +215,30 @@
                         <div class="space-y-2 text-sm text-gray-700">
                             <div class="flex justify-between">
                                 <span>Base Price</span>
-                                <span>{{ number_format($basePrice / 100, 0) }} MKD</span>
+                                <span>{{ number_format($breakdown['base'] / 100, 0) }} MKD</span>
                             </div>
-                            @if($isPeak)
+                            @if($breakdown['peak'] > 0)
                                 <div class="flex justify-between">
-                                    <span>Peak Hours (+20%)</span>
-                                    <span>+{{ number_format(round($basePrice * 0.2) / 100, 0) }} MKD</span>
+                                    <span>Peak Hours (+{{ \App\Models\Booking::PEAK_SURCHARGE * 100 }}%)</span>
+                                    <span>+{{ number_format($breakdown['peak'] / 100, 0) }} MKD</span>
                                 </div>
                             @endif
-                            @if($isWeekend)
+                            @if($breakdown['weekend'] > 0)
                                 <div class="flex justify-between">
-                                    <span>Weekend (+10%)</span>
-                                    <span>+{{ number_format(round(($isPeak ? $basePrice * 1.2 : $basePrice) * 0.1) / 100, 0) }} MKD</span>
+                                    <span>Weekend (+{{ \App\Models\Booking::WEEKEND_SURCHARGE * 100 }}%)</span>
+                                    <span>+{{ number_format($breakdown['weekend'] / 100, 0) }} MKD</span>
                                 </div>
                             @endif
-                            @if($rentalTotal > 0)
+                            @if($breakdown['rentals'] > 0)
                                 <div class="flex justify-between border-t border-gray-100 pt-2">
                                     <span>Extras</span>
-                                    <span>+{{ number_format($rentalTotal / 100, 0) }} MKD</span>
+                                    <span>+{{ number_format($breakdown['rentals'] / 100, 0) }} MKD</span>
                                 </div>
                             @endif
                             
                             <div class="flex justify-between items-center pt-4 mt-4 border-t border-black">
                                 <span class="text-base font-bold text-black">Total</span>
-                                <span class="text-xl font-bold text-black">{{ number_format($calculatedPrice / 100, 0) }} MKD</span>
+                                <span class="text-xl font-bold text-black">{{ number_format($breakdown['total'] / 100, 0) }} MKD</span>
                             </div>
                         </div>
                     </div>

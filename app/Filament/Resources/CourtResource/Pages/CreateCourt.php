@@ -3,9 +3,7 @@
 namespace App\Filament\Resources\CourtResource\Pages;
 
 use App\Filament\Resources\CourtResource;
-use App\Models\User;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Validation\ValidationException;
 
 class CreateCourt extends CreateRecord
 {
@@ -13,13 +11,7 @@ class CreateCourt extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $user = auth('admin')->user();
-
-        if ($user instanceof User && $user->isFacilityManager() && !$user->managesFacility($data['facility_id'])) {
-            throw ValidationException::withMessages([
-                'facility_id' => 'You can only create courts for your assigned facilities.',
-            ]);
-        }
+        CourtResource::assertManagesFacility($data['facility_id'] ?? null, 'facility_id');
 
         return $data;
     }

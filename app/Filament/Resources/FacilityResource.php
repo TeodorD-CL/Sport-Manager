@@ -2,10 +2,11 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\ScopesToManagedFacilities;
 use App\Filament\Resources\FacilityResource\Pages;
 use App\Filament\Resources\FacilityResource\RelationManagers\ManagersRelationManager;
+use App\Models\Booking;
 use App\Models\Facility;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Filament\Forms;
@@ -16,6 +17,8 @@ use Filament\Tables\Table;
 
 class FacilityResource extends Resource
 {
+    use ScopesToManagedFacilities;
+
     protected static ?string $model = Facility::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
@@ -32,7 +35,10 @@ class FacilityResource extends Resource
                     ->required(),
                 Forms\Components\TextInput::make('address')
                     ->required(),
-                Forms\Components\FileUpload::make('image_path'),
+                Forms\Components\FileUpload::make('image_path')
+                    ->disk('public')
+                    ->directory('facilities')
+                    ->image(),
                 Forms\Components\TextInput::make('opening_hour')
                     ->label('Opening hour')
                     ->numeric()
@@ -57,8 +63,12 @@ class FacilityResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name'),
-                Tables\Columns\TextColumn::make('city'),
+                Tables\Columns\TextColumn::make('name')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('city')
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('opening_hour')
                     ->label('Open')
                     ->formatStateUsing(fn ($state) => str_pad((string) $state, 2, '0', STR_PAD_LEFT) . ':00'),
@@ -76,25 +86,14 @@ class FacilityResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    static::deleteBulkAction(),
                 ]),
             ]);
     }
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
-        $user = static::getCurrentAdminUser();
-
-        if (!$user || $user->isSuperAdmin()) {
-            return $query;
-        }
-
-        if ($user->isFacilityManager()) {
-            return $query->whereIn('id', $user->managedFacilityIds());
-        }
-
-        return $query->whereRaw('1 = 0');
+        return static::scopeToManagedFacilities(parent::getEloquentQuery(), 'id');
     }
 
     public static function canViewAny(): bool
@@ -124,9 +123,16 @@ class FacilityResource extends Resource
         return $user->isFacilityManager() && $user->managesFacility($record->getKey());
     }
 
+    // Only super admins delete facilities, and only ones without bookings: deleting removes its courts, reviews and managers.
     public static function canDelete(Model $record): bool
     {
-        return static::canEdit($record);
+        return (static::getCurrentAdminUser()?->isSuperAdmin() ?? false)
+            && !Booking::whereHas('court', fn (Builder $query) => $query->where('facility_id', $record->getKey()))->exists();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::getCurrentAdminUser()?->isSuperAdmin() ?? false;
     }
 
     public static function getRelations(): array
@@ -143,18 +149,5 @@ class FacilityResource extends Resource
             'create' => Pages\CreateFacility::route('/create'),
             'edit' => Pages\EditFacility::route('/{record}/edit'),
         ];
-    }
-
-    protected static function getCurrentAdminUser(): ?User
-    {
-        $user = auth('admin')->user();
-
-        if ($user instanceof User) {
-            return $user;
-        }
-
-        $defaultGuardUser = auth()->user();
-
-        return $defaultGuardUser instanceof User ? $defaultGuardUser : null;
     }
 }
