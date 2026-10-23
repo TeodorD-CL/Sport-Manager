@@ -2,7 +2,10 @@
 FROM dunglas/frankenphp:1-php8.2-bookworm AS app
 
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
-    && install-php-extensions pdo_pgsql pdo_sqlite gd zip intl bcmath pcntl exif opcache
+    && install-php-extensions pdo_pgsql pdo_sqlite gd zip intl bcmath pcntl exif opcache \
+    # Render blocks binaries with file capabilities ("exec: frankenphp: Operation not permitted").
+    # The capability only allows ports below 1024, and the app listens on $PORT, so it isn't needed.
+    && setcap -r /usr/local/bin/frankenphp
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
