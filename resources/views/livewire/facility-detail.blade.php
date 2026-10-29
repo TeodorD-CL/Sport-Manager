@@ -29,26 +29,97 @@
             </div>
         @endif
 
-        {{-- Gallery --}}
+        {{-- Gallery: phone shows the main photo, tablet two, desktop a mosaic of three; the rest are counted, not hidden silently. --}}
         @php
-            $images = $facility->courts->pluck('image_path')->filter();
-            if ($facility->image_path) { $images = collect([$facility->image_path])->merge($images); }
-            $images = $images->unique()->take(2);
-            if ($images->isEmpty()) { $images = collect(['/images/sports-hall.jpg']); }
+            $photoUrl = fn ($path) => str_starts_with($path, '/') || str_starts_with($path, 'http') ? $path : '/storage/' . $path;
+            $photos = collect($facility->image_path ? [['src' => $photoUrl($facility->image_path), 'alt' => $facility->name]] : [])
+                ->merge($facility->courts->filter(fn ($court) => $court->image_path)
+                    ->map(fn ($court) => ['src' => $photoUrl($court->image_path), 'alt' => $court->name . ' at ' . $facility->name]))
+                ->unique('src')
+                ->values();
+            if ($photos->isEmpty()) { $photos = collect([['src' => '/images/sports-hall.jpg', 'alt' => $facility->name]]); }
+            $total = $photos->count();
+            $tile = [
+                0 => 'aspect-[4/3] ' . match (true) {
+                    $total === 1 => 'sm:col-span-2 sm:aspect-[21/9] lg:aspect-auto',
+                    $total === 2 => 'sm:aspect-video lg:aspect-auto',
+                    default => 'sm:aspect-video lg:aspect-auto lg:col-span-2 lg:row-span-2',
+                },
+                1 => 'hidden sm:block aspect-video lg:aspect-auto',
+                2 => 'hidden lg:block',
+            ];
         @endphp
-        @if($images->count() > 0)
-        <div class="grid grid-cols-1 {{ $images->count() > 1 ? 'md:grid-cols-2' : '' }} gap-4 mb-12">
-            @foreach($images as $index => $img)
-                @php
-                    $src = $img;
-                    if ($src && !str_starts_with($src, '/') && !str_starts_with($src, 'http')) { $src = '/storage/' . $src; }
-                @endphp
-                <div class="aspect-[4/3] {{ $images->count() > 1 ? 'md:aspect-video' : 'md:aspect-[21/9]' }} bg-gray-100 border border-gray-200">
-                    <img src="{{ $src }}" alt="{{ $facility->name }}" class="w-full h-full object-cover">
+        <div x-data="{
+                photos: @js($photos),
+                open: false,
+                i: 0,
+                opener: null,
+                startX: null,
+                show(n) { this.opener = document.activeElement; this.i = n; this.open = true },
+                close() { this.open = false; this.$nextTick(() => this.opener?.focus()) },
+                prev() { this.i = (this.i + this.photos.length - 1) % this.photos.length },
+                next() { this.i = (this.i + 1) % this.photos.length },
+                swipe(endX) { const dx = endX - this.startX; if (this.startX !== null && Math.abs(dx) > 50) { dx < 0 ? this.next() : this.prev() } this.startX = null },
+            }">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12 lg:h-[420px] {{ $total > 2 ? 'lg:grid-cols-3 lg:grid-rows-2' : '' }}">
+                @foreach($photos->take(3) as $index => $photo)
+                    <button type="button" @click="show({{ $index }})" aria-label="Open photo {{ $index + 1 }} of {{ $total }}: {{ $photo['alt'] }}"
+                            class="group relative overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer {{ $tile[$index] }}">
+                        <img src="{{ $photo['src'] }}" alt="" loading="{{ $index === 0 ? 'eager' : 'lazy' }}" class="w-full h-full object-cover transition-opacity group-hover:opacity-90">
+                        @if($index === 0 && $total > 1)
+                            <span class="sm:hidden absolute bottom-3 right-3 bg-black/75 text-white text-xs font-bold px-2 py-1">1 / {{ $total }}</span>
+                        @elseif($index === 1 && $total > 2)
+                            <span class="lg:hidden absolute inset-0 flex items-center justify-center bg-black/55 text-white text-base font-bold">+{{ $total - 2 }} {{ Str::plural('photo', $total - 2) }}</span>
+                        @elseif($index === 2 && $total > 3)
+                            <span class="absolute inset-0 flex items-center justify-center bg-black/55 text-white text-base font-bold">+{{ $total - 3 }} {{ Str::plural('photo', $total - 3) }}</span>
+                        @endif
+                    </button>
+                @endforeach
+            </div>
+
+            {{-- Full-screen viewer, moved to <body> so it sits above the header and the chat button. --}}
+            <template x-teleport="body">
+                <div x-show="open" x-cloak x-trap.noscroll="open"
+                     @keydown.escape.window="open && close()"
+                     @keydown.arrow-left.window="open && prev()"
+                     @keydown.arrow-right.window="open && next()"
+                     @touchstart="startX = $event.touches[0].clientX"
+                     @touchend="swipe($event.changedTouches[0].clientX)"
+                     role="dialog" aria-modal="true" aria-label="Photos of {{ $facility->name }}"
+                     class="fixed inset-0 z-[70] bg-black flex flex-col font-sans">
+                    <div class="flex items-center justify-between gap-4 px-4 py-2 text-white">
+                        <p class="text-sm font-bold truncate" aria-live="polite">
+                            <span x-text="`${i + 1} / ${photos.length}`"></span> · <span x-text="photos[i].alt"></span>
+                        </p>
+                        <button type="button" @click="close()" class="w-11 h-11 flex items-center justify-center shrink-0 [@media(hover:hover)]:hover:bg-white/10" aria-label="Close photos">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="flex-1 min-h-0 flex items-center justify-center px-4">
+                        <img :src="photos[i].src" :alt="photos[i].alt" class="max-w-full max-h-full object-contain">
+                    </div>
+
+                    <div x-show="photos.length > 1" class="flex items-center justify-center gap-4 px-4 py-4">
+                        <button type="button" @click="prev()" class="w-11 h-11 flex items-center justify-center border border-white/40 text-white [@media(hover:hover)]:hover:bg-white/10" aria-label="Previous photo">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        </button>
+                        {{-- Thumbnails only where there's room for them. --}}
+                        <div class="hidden lg:flex gap-2">
+                            <template x-for="(photo, n) in photos" :key="photo.src">
+                                <button type="button" @click="i = n" :aria-label="`Show photo ${n + 1}`" :aria-current="i === n"
+                                        class="w-16 h-12 overflow-hidden border-2" :class="i === n ? 'border-white' : 'border-transparent opacity-60 [@media(hover:hover)]:hover:opacity-100'">
+                                    <img :src="photo.src" alt="" class="w-full h-full object-cover">
+                                </button>
+                            </template>
+                        </div>
+                        <button type="button" @click="next()" class="w-11 h-11 flex items-center justify-center border border-white/40 text-white [@media(hover:hover)]:hover:bg-white/10" aria-label="Next photo">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+                    </div>
                 </div>
-            @endforeach
+            </template>
         </div>
-        @endif
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
             
@@ -97,11 +168,16 @@
                     <div class="space-y-8">
                         @foreach($availableSlots as $courtId => $data)
                             <div class="border border-gray-200 p-5">
-                                <div class="mb-4">
-                                    <h3 class="font-bold text-black text-lg">{{ $data['court']['name'] }}</h3>
-                                    <p class="text-sm text-gray-600">
-                                        {{ $data['court']['type'] ?? 'Court' }} · {{ number_format($data['court']['base_price_per_hour'] / 100, 0) }} MKD / hr
-                                    </p>
+                                <div class="mb-4 flex items-center gap-4">
+                                    @if($data['court']['image_path'])
+                                        <img src="{{ $photoUrl($data['court']['image_path']) }}" alt="" loading="lazy" class="w-16 h-16 sm:w-20 sm:h-20 object-cover border border-gray-200 shrink-0">
+                                    @endif
+                                    <div>
+                                        <h3 class="font-bold text-black text-lg">{{ $data['court']['name'] }}</h3>
+                                        <p class="text-sm text-gray-600">
+                                            {{ $data['court']['type'] ?? 'Court' }} · {{ number_format($data['court']['base_price_per_hour'] / 100, 0) }} MKD / hr
+                                        </p>
+                                    </div>
                                 </div>
                                 @if(empty($data['slots']))
                                     <p class="text-sm text-gray-600">No more times left on this day. Choose another date above.</p>
