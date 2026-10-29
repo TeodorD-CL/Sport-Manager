@@ -11,8 +11,9 @@ use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
-    public function showLogin()
+    public function showLogin(Request $request)
     {
+        $this->forgetAbandonedBooking($request);
         return view('auth.login');
     }
 
@@ -35,8 +36,9 @@ class AuthController extends Controller
         ])->onlyInput('email');
     }
 
-    public function showRegister()
+    public function showRegister(Request $request)
     {
+        $this->forgetAbandonedBooking($request);
         return view('auth.register');
     }
 
@@ -64,6 +66,15 @@ class AuthController extends Controller
         Auth::login($user);
 
         return redirect()->intended('/');
+    }
+
+    // "Sign in to Book" stores the slot to return to and adds ?book=1. Signing in from anywhere else
+    // later shouldn't drop the user into that old booking, so the stored slot is forgotten then.
+    private function forgetAbandonedBooking(Request $request): void
+    {
+        if (!$request->has('book') && str_contains((string) session('url.intended'), 'slot=')) {
+            session()->forget('url.intended');
+        }
     }
 
     // Emails are stored lowercase (see User::email()), so lookups and the unique check must use the same form.

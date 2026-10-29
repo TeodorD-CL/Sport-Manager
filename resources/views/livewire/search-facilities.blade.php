@@ -3,13 +3,13 @@
 @endpush
 
 <div>
-    <div class="max-w-7xl mx-auto px-6 pt-10 md:pt-16 pb-12">
+    <div class="max-w-7xl mx-auto px-6 pt-6 md:pt-16 pb-12">
         {{-- Hero --}}
-        <div class="mb-8 md:mb-12">
-            <p class="text-xs font-bold text-gray-600 tracking-[0.1em] uppercase mb-4 md:mb-6">
+        <div class="mb-6 md:mb-12">
+            <p class="text-xs font-bold text-gray-600 tracking-[0.1em] uppercase mb-3 md:mb-6">
                 Sports Facilities &bull; North Macedonia
             </p>
-            <h1 class="text-4xl md:text-[52px] leading-[1.05] font-bold text-[#111] tracking-[-0.03em] max-w-2xl mb-4 md:mb-6">
+            <h1 class="text-[32px] md:text-[52px] leading-[1.05] font-bold text-[#111] tracking-[-0.03em] max-w-2xl mb-3 md:mb-6">
                 Every court in the country,<br>bookable by the hour.
             </h1>
             <p class="text-[15px] text-gray-600 leading-relaxed max-w-lg">
@@ -23,7 +23,7 @@
             <form wire:submit="search" class="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] divide-y md:divide-y-0 md:divide-x divide-black">
                 
                 {{-- City --}}
-                <div class="relative py-3 px-4 flex flex-col justify-center" x-data="{ open: false }">
+                <div class="relative py-2 md:py-3 px-4 flex flex-col justify-center" x-data="{ open: false }">
                     <label class="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">City</label>
                     <button type="button" @click="open = !open" @click.outside="open = false" class="w-full flex justify-between items-center bg-transparent text-[14px] font-bold text-black border-none p-0 text-left focus:outline-none">
                         <span>{{ $city ?: 'All cities' }}</span>
@@ -39,7 +39,7 @@
                 </div>
 
                 {{-- Sport --}}
-                <div class="relative py-3 px-4 flex flex-col justify-center" x-data="{ open: false }">
+                <div class="relative py-2 md:py-3 px-4 flex flex-col justify-center" x-data="{ open: false }">
                     <label class="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">Sport</label>
                     <button type="button" @click="open = !open" @click.outside="open = false" class="w-full flex justify-between items-center bg-transparent text-[14px] font-bold text-black border-none p-0 text-left focus:outline-none">
                         <span>{{ $type ?: 'All sports' }}</span>
@@ -55,7 +55,7 @@
                 </div>
 
                 {{-- Date --}}
-                <div class="relative py-3 px-4 flex flex-col justify-center" wire:ignore>
+                <div class="relative py-2 md:py-3 px-4 flex flex-col justify-center" wire:ignore>
                     <label class="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">Date</label>
                     <input type="text" data-search-date
                            x-data="{ value: @entangle('date').live }" 
@@ -65,7 +65,7 @@
                 </div>
 
                 {{-- Submit --}}
-                <button type="submit" class="bg-[#111] text-white px-10 py-4 font-bold text-[13px] hover:bg-black transition-colors flex items-center justify-center">
+                <button type="submit" class="bg-[#111] text-white px-10 py-3 md:py-4 font-bold text-[13px] hover:bg-black transition-colors flex items-center justify-center">
                     Search
                 </button>
             </form>

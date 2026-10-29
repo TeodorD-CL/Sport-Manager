@@ -32,8 +32,13 @@
         {{-- Gallery: phone shows the main photo, tablet two, desktop a mosaic of three; the rest are counted, not hidden silently. --}}
         @php
             $photoUrl = fn ($path) => str_starts_with($path, '/') || str_starts_with($path, 'http') ? $path : '/storage/' . $path;
-            // Seeded photos are 1600px Unsplash links; thumbnails ask for a smaller copy.
-            $thumbUrl = fn ($path) => str_replace('w=1600', 'w=200', $photoUrl($path));
+            // Thumbnails ask Unsplash for a smaller copy, and use public/images/thumbs for our own photos.
+            // ponytail: uploaded photos in /storage still load full size; resize on upload if they get heavy.
+            $thumbUrl = function ($path) use ($photoUrl) {
+                $url = str_replace('w=1600', 'w=200', $photoUrl($path));
+                $thumb = str_replace('/images/', '/images/thumbs/', $url);
+                return str_starts_with($url, '/images/') && file_exists(public_path($thumb)) ? $thumb : $url;
+            };
             $photos = collect($facility->image_path ? [['src' => $photoUrl($facility->image_path), 'alt' => $facility->name]] : [])
                 ->merge($facility->courts->filter(fn ($court) => $court->image_path)
                     ->map(fn ($court) => ['src' => $photoUrl($court->image_path), 'alt' => $court->name . ' at ' . $facility->name]))
@@ -153,14 +158,15 @@
 
                 {{-- Book a Court --}}
                 <div id="availability" class="scroll-mt-6">
-                    <div class="sticky top-0 z-20 bg-[#f4f3ed] pt-3 lg:static lg:pt-0 flex flex-col sm:flex-row sm:items-end justify-between mb-6 border-b border-black pb-2 gap-4">
-                        <h2 class="text-xl font-bold text-black tracking-tight">Availability</h2>
-                        <div class="w-full sm:w-auto" wire:ignore>
-                            <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Select Date</label>
+                    {{-- Below lg the wrapper dissolves (contents) so only the one-line date row stays pinned while scrolling slots. --}}
+                    <div class="max-lg:contents flex items-end justify-between mb-6 border-b border-black pb-2 gap-4">
+                        <h2 class="text-xl font-bold text-black tracking-tight max-lg:border-b max-lg:border-black max-lg:pb-2 max-lg:mb-2">Availability</h2>
+                        <div class="max-lg:sticky max-lg:top-0 max-lg:z-20 max-lg:bg-[#f4f3ed] max-lg:py-2 max-lg:mb-4 max-lg:flex max-lg:items-center max-lg:gap-3 max-lg:[&>input]:flex-1" wire:ignore>
+                            <label class="block shrink-0 text-xs font-bold text-gray-600 uppercase lg:mb-1">Select Date</label>
                             <input type="text" 
                                    x-data="{ value: @entangle('selectedDate').live }" 
                                    x-init="flatpickr($el, { dateFormat: 'Y-m-d', altInput: true, altFormat: 'D, j M Y', minDate: 'today', defaultDate: value, onChange: function(selectedDates, dateStr) { value = dateStr; } })" 
-                                   class="w-full sm:w-auto border border-gray-300 px-3 py-2 text-sm font-bold text-black focus:outline-none focus:border-black focus:ring-1 focus:ring-black rounded-none placeholder-black cursor-pointer bg-white" 
+                                   class="w-full lg:w-auto border border-gray-300 px-3 py-2 text-sm font-bold text-black focus:outline-none focus:border-black focus:ring-1 focus:ring-black rounded-none placeholder-black cursor-pointer bg-white" 
                                    placeholder="Select date">
                         </div>
                     </div>
@@ -284,7 +290,7 @@
                 <div class="p-6 overflow-y-auto">
                     <div class="mb-6">
                         <p class="font-bold text-black text-lg mb-1">{{ $selectedCourt?->name }}</p>
-                        <p class="text-sm text-gray-600">{{ \Carbon\Carbon::parse($selectedDate)->format('D, M j, Y') }} · {{ $selectedSlot['start'] ?? '' }} - {{ $selectedSlot['end'] ?? '' }}</p>
+                        <p class="text-sm text-gray-600">{{ \Carbon\Carbon::parse($selectedDate)->format('D, j M Y') }} · {{ $selectedSlot['start'] ?? '' }} - {{ $selectedSlot['end'] ?? '' }}</p>
                     </div>
 
                     @if(count($rentals) > 0)

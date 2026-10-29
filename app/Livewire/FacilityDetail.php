@@ -52,8 +52,15 @@ class FacilityDetail extends Component
         }
         $court = request()->query('court');
         $start = request()->query('slot');
-        if (is_string($court) && is_string($start)) {
+        // Only a slot that is still free: someone may have taken it while the guest signed in.
+        $free = is_string($court) && is_string($start)
+            && collect($this->availableSlots[$court]['slots'] ?? [])->contains(fn ($slot) => $slot['start'] === $start && $slot['available']);
+        if ($free) {
             $this->selectSlot($court, $start);
+        }
+        if ($court !== null || $start !== null) {
+            // Drop the slot from the address so a reload doesn't reopen the modal.
+            $this->js('history.replaceState(null, "", location.pathname)');
         }
     }
 
@@ -129,7 +136,7 @@ class FacilityDetail extends Component
             'slot' => $this->selectedSlot['start'] ?? null,
         ]));
 
-        return redirect()->route('login');
+        return redirect()->route('login', ['book' => 1]);
     }
 
     public function toggleRental($rentalId)

@@ -448,7 +448,7 @@ class UiFixesTest extends TestCase
         Livewire::test(FacilityDetail::class, ['id' => $facility->id])
             ->call('selectSlot', $court->id, '19:00')
             ->call('loginToBook')
-            ->assertRedirect(route('login'));
+            ->assertRedirect(route('login', ['book' => 1]));
 
         $intended = session('url.intended');
         $this->assertStringContainsString('date=2030-06-03', $intended);
@@ -470,5 +470,58 @@ class UiFixesTest extends TestCase
         $slots = collect(Livewire::test(FacilityDetail::class, ['id' => $facility->id])->get('availableSlots')[$court->id]['slots']);
 
         $this->assertSame(['18:00', '19:00', '20:00', '21:00'], $slots->where('peak', true)->pluck('start')->values()->all());
+    }
+
+    public function test_return_link_does_not_reopen_a_slot_that_was_taken_meanwhile(): void
+    {
+        $this->travelTo(Carbon::parse('2030-06-03 09:30'));
+        $facility = $this->createFacility();
+        $court = $this->createCourt($facility);
+        $start = Carbon::parse('2030-06-03 19:00');
+        Booking::create([
+            'user_id' => User::factory()->create()->id,
+            'court_id' => $court->id,
+            'start_time' => $start,
+            'end_time' => $start->copy()->addHour(),
+            'status' => 'confirmed',
+            'total_price' => 12000,
+        ]);
+
+        Livewire::withQueryParams(['date' => '2030-06-03', 'court' => $court->id, 'slot' => '19:00'])
+            ->test(FacilityDetail::class, ['id' => $facility->id])
+            ->assertSet('showBookingModal', false);
+
+        Livewire::withQueryParams(['date' => '2030-06-03', 'court' => $court->id, 'slot' => '03:00'])
+            ->test(FacilityDetail::class, ['id' => $facility->id])
+            ->assertSet('showBookingModal', false);
+    }
+
+    public function test_signing_in_from_elsewhere_forgets_an_abandoned_booking(): void
+    {
+        $booking = '/facility/x?date=2030-06-03&court=y&slot=19%3A00';
+
+        $this->withSession(['url.intended' => $booking])->get('/login?book=1');
+        $this->assertSame($booking, session('url.intended'));
+
+        $this->get('/login');
+        $this->assertNull(session('url.intended'));
+
+        // Other return addresses, like a guest opening /dashboard, are kept.
+        $this->withSession(['url.intended' => '/dashboard'])->get('/register');
+        $this->assertSame('/dashboard', session('url.intended'));
+    }
+
+    public function test_search_card_shows_the_first_added_court_photo(): void
+    {
+        // Inserted second but dated earlier, so insertion order alone would pick the wrong photo.
+        $facility = $this->createFacility();
+        $this->createCourt($facility, ['name' => 'Second', 'image_path' => '/images/second.jpg']);
+        $this->travelTo(now()->subMinute());
+        $this->createCourt($facility, ['name' => 'First', 'image_path' => '/images/first.jpg']);
+        $this->travelBack();
+
+        Livewire::test(SearchFacilities::class)
+            ->assertSeeHtml('src="/images/first.jpg"')
+            ->assertDontSeeHtml('src="/images/second.jpg"');
     }
 }

@@ -42,7 +42,7 @@
 
             <div class="mt-8 text-center border-t border-gray-200 pt-8">
                 <p class="text-sm text-gray-600">Don't have an account?
-                    <a href="/register" class="font-bold text-black hover:underline ml-1">Create one</a>
+                    <a href="/register{{ request()->has('book') ? '?book=1' : '' }}" class="font-bold text-black hover:underline ml-1">Create one</a>
                 </p>
             </div>
         </div>

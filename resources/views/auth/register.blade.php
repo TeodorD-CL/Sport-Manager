@@ -54,7 +54,7 @@
 
             <div class="mt-8 text-center border-t border-gray-200 pt-8">
                 <p class="text-sm text-gray-600">Already have an account?
-                    <a href="/login" class="font-bold text-black hover:underline ml-1">Sign in</a>
+                    <a href="/login{{ request()->has('book') ? '?book=1' : '' }}" class="font-bold text-black hover:underline ml-1">Sign in</a>
                 </p>
             </div>
         </div>
