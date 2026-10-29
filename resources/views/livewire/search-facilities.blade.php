@@ -9,7 +9,7 @@
                 Every court in the country,<br>bookable by the hour.
             </h1>
             <p class="text-[15px] text-gray-600 leading-relaxed max-w-lg">
-                Live availability across arenas, halls and pools. Choose a slot,<br>
+                Live availability across arenas, halls and pools. Choose a slot,<br class="hidden md:block">
                 reserve it, and play &mdash; no calls, no waiting.
             </p>
         </div>
@@ -20,7 +20,7 @@
                 
                 {{-- City --}}
                 <div class="relative py-3 px-4 flex flex-col justify-center" x-data="{ open: false }">
-                    <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">City</label>
+                    <label class="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">City</label>
                     <button type="button" @click="open = !open" @click.outside="open = false" class="w-full flex justify-between items-center bg-transparent text-[14px] font-bold text-black border-none p-0 text-left focus:outline-none">
                         <span>{{ $city ?: 'All cities' }}</span>
                         <svg class="w-2.5 h-2.5 text-black transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -36,7 +36,7 @@
 
                 {{-- Sport --}}
                 <div class="relative py-3 px-4 flex flex-col justify-center" x-data="{ open: false }">
-                    <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Sport</label>
+                    <label class="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">Sport</label>
                     <button type="button" @click="open = !open" @click.outside="open = false" class="w-full flex justify-between items-center bg-transparent text-[14px] font-bold text-black border-none p-0 text-left focus:outline-none">
                         <span>{{ $type ?: 'All sports' }}</span>
                         <svg class="w-2.5 h-2.5 text-black transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -52,9 +52,9 @@
 
                 {{-- Date --}}
                 <div class="relative py-3 px-4" wire:ignore>
-                    <label class="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Date</label>
-                    <input type="text" 
-                           x-data="{ value: @entangle('date') }" 
+                    <label class="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">Date</label>
+                    <input type="text" data-search-date
+                           x-data="{ value: @entangle('date').live }" 
                            x-init="flatpickr($el, { dateFormat: 'Y-m-d', minDate: 'today', defaultDate: value, onChange: function(selectedDates, dateStr) { value = dateStr; } })" 
                            class="w-full bg-transparent text-[14px] font-bold text-black border-none p-0 focus:ring-0 cursor-pointer placeholder-black" 
                            placeholder="Select date">
@@ -109,10 +109,34 @@
             </div>
         </div>
 
+        {{-- Active Filters --}}
+        @php
+            $activeAmenities = $amenities->whereIn('id', $amenityFilters);
+            $chip = 'inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold bg-[#111] text-white hover:bg-gray-700 transition-colors';
+        @endphp
+        @if($city || $type || $date || $activeAmenities->isNotEmpty())
+            <div class="flex flex-wrap items-center gap-2 mb-8">
+                <span class="text-xs font-bold text-gray-600 uppercase tracking-widest mr-2">Filters</span>
+                @if($city)
+                    <button type="button" wire:click="$set('city', '')" class="{{ $chip }}" aria-label="Remove filter {{ $city }}">{{ $city }} <span aria-hidden="true">&times;</span></button>
+                @endif
+                @if($type)
+                    <button type="button" wire:click="$set('type', '')" class="{{ $chip }}" aria-label="Remove filter {{ $type }}">{{ $type }} <span aria-hidden="true">&times;</span></button>
+                @endif
+                @if($date)
+                    <button type="button" x-on:click="document.querySelector('[data-search-date]')._flatpickr.clear(); $wire.set('date', '')" class="{{ $chip }}" aria-label="Remove filter {{ $date }}">{{ $date }} <span aria-hidden="true">&times;</span></button>
+                @endif
+                @foreach($activeAmenities as $amenity)
+                    <button type="button" wire:click="$set('amenityFilters', @js(array_values(array_diff($amenityFilters, [$amenity->id]))))" class="{{ $chip }}" aria-label="Remove filter {{ $amenity->name }}">{{ $amenity->name }} <span aria-hidden="true">&times;</span></button>
+                @endforeach
+                <button type="button" x-on:click="document.querySelector('[data-search-date]')._flatpickr.clear(); $wire.clearFilters()" class="ml-2 text-xs font-bold text-black underline hover:no-underline">Clear all</button>
+            </div>
+        @endif
+
         {{-- Results Header --}}
         <div class="flex items-end gap-3 mb-4">
             <h2 class="text-xl font-bold text-black tracking-tight">Facilities</h2>
-            <span class="text-[11px] text-gray-500 pb-0.5">{{ str_pad($facilities->total(), 2, '0', STR_PAD_LEFT) }} available</span>
+            <span class="text-[11px] text-gray-500 pb-0.5">{{ $facilities->total() }} {{ Str::plural('facility', $facilities->total()) }}</span>
         </div>
         <div class="w-full h-px bg-black mb-6"></div>
 
@@ -180,11 +204,19 @@
                     <div class="col-span-full py-16 border-y border-black text-center">
                         <p class="text-sm font-bold text-black uppercase tracking-widest mb-2">No facilities found</p>
                         <p class="text-xs text-gray-500 mb-6">Adjust your search parameters to find available courts.</p>
-                        <button wire:click="clearFilters" class="text-xs font-bold text-black underline hover:no-underline">
+                        <button x-on:click="document.querySelector('[data-search-date]')._flatpickr.clear(); $wire.clearFilters()" class="text-xs font-bold text-black underline hover:no-underline">
                             Clear filters
                         </button>
                     </div>
                 @endforelse
+
+                @if($facilities->count() % 3)
+                    <div class="hidden lg:flex flex-col justify-center items-start border border-black p-8">
+                        <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Not sure where to play?</p>
+                        <p class="text-[20px] font-bold text-black tracking-tight leading-snug mb-6">Ask the assistant for free courts, prices and rules.</p>
+                        <button type="button" x-on:click="$dispatch('open-chat')" class="bg-[#111] text-white px-6 py-3 font-bold text-[13px] hover:bg-black transition-colors">Open chat</button>
+                    </div>
+                @endif
             </div>
         </div>
 

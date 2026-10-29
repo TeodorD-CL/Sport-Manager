@@ -3,9 +3,10 @@
     <meta property="og:title" content="{{ $facility->name }} – Sport Manager">
 @endpush
 
-<div class="bg-white min-h-screen pb-16">
+<div class="min-h-screen pb-16">
     {{-- Header Section --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-6 border-b border-gray-200">
+        <a href="/" class="inline-block mb-4 text-[13px] font-bold text-gray-600 hover:text-black transition-colors">&larr; All facilities</a>
         <h1 class="text-3xl md:text-4xl font-bold text-black tracking-tight mb-2">{{ $facility->name }}</h1>
         <div class="flex flex-col sm:flex-row sm:items-center gap-4 text-sm text-gray-700">
             @if($avgRating > 0)
@@ -32,17 +33,18 @@
         @php
             $images = $facility->courts->pluck('image_path')->filter();
             if ($facility->image_path) { $images = collect([$facility->image_path])->merge($images); }
+            $images = $images->unique()->take(2);
             if ($images->isEmpty()) { $images = collect(['/images/sports-hall.jpg']); }
         @endphp
         @if($images->count() > 0)
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
-            @foreach($images->take(2) as $index => $img)
+        <div class="grid grid-cols-1 {{ $images->count() > 1 ? 'md:grid-cols-2' : '' }} gap-4 mb-12">
+            @foreach($images as $index => $img)
                 @php
                     $src = $img;
                     if ($src && !str_starts_with($src, '/') && !str_starts_with($src, 'http')) { $src = '/storage/' . $src; }
                 @endphp
-                <div class="aspect-[4/3] md:aspect-video bg-gray-100 border border-gray-200">
-                    <img src="{{ $src }}" alt="Facility view" class="w-full h-full object-cover">
+                <div class="aspect-[4/3] {{ $images->count() > 1 ? 'md:aspect-video' : 'md:aspect-[21/9]' }} bg-gray-100 border border-gray-200">
+                    <img src="{{ $src }}" alt="{{ $facility->name }}" class="w-full h-full object-cover">
                 </div>
             @endforeach
         </div>
@@ -77,7 +79,7 @@
                 @endif
 
                 {{-- Book a Court --}}
-                <div class="scroll-mt-6">
+                <div id="availability" class="scroll-mt-6">
                     <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-6 border-b border-black pb-2 gap-4">
                         <h2 class="text-xl font-bold text-black tracking-tight">Availability</h2>
                         <div class="w-full sm:w-auto" wire:ignore>
@@ -90,6 +92,8 @@
                         </div>
                     </div>
 
+                    <p class="text-sm text-gray-600 mb-6">Pick a free time to book it. Prices include peak and weekend surcharges.</p>
+
                     <div class="space-y-8">
                         @foreach($availableSlots as $courtId => $data)
                             <div class="border border-gray-200 p-5">
@@ -99,16 +103,19 @@
                                         {{ $data['court']['type'] ?? 'Court' }} · {{ number_format($data['court']['base_price_per_hour'] / 100, 0) }} MKD / hr
                                     </p>
                                 </div>
+                                @if(empty($data['slots']))
+                                    <p class="text-sm text-gray-600">No more times left on this day. Choose another date above.</p>
+                                @endif
                                 <div class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2">
                                     @foreach($data['slots'] as $slot)
                                         @if($slot['available'])
                                             <button wire:click="selectSlot(@js($courtId), @js($slot['start']))"
-                                                    class="py-2 text-sm font-medium border border-black text-black hover:bg-black hover:text-white transition-colors">
+                                                    class="py-2 text-sm font-medium border border-black bg-white text-black hover:bg-black hover:text-white transition-colors">
                                                 {{ $slot['start'] }}
-                                                <span class="block text-[10px] font-normal">{{ number_format($slot['price'] / 100, 0) }} MKD</span>
+                                                <span class="block text-xs font-normal">{{ number_format($slot['price'] / 100, 0) }} MKD</span>
                                             </button>
                                         @else
-                                            <button disabled class="py-2 text-sm font-medium border border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed line-through">
+                                            <button disabled aria-label="{{ $slot['start'] }} booked" class="py-2 text-sm font-medium border border-gray-200 bg-gray-100 text-gray-600 cursor-not-allowed line-through">
                                                 {{ $slot['start'] }}
                                             </button>
                                         @endif
@@ -151,8 +158,8 @@
             </div>
 
             {{-- Sidebar Column --}}
-            <div class="lg:col-span-4">
-                <div class="border border-gray-300 p-6 sticky top-24">
+            <div class="lg:col-span-4 order-first lg:order-none">
+                <div class="border border-gray-300 bg-white p-6 sticky top-24">
                     <h3 class="font-bold text-black mb-4 border-b border-gray-200 pb-2 text-lg">Details</h3>
                     <ul class="space-y-4 text-sm text-gray-800">
                         <li class="flex flex-col">
@@ -168,6 +175,7 @@
                             {{ $facility->courts->count() }} available
                         </li>
                     </ul>
+                    <a href="#availability" class="mt-6 flex h-12 w-full items-center justify-center bg-black text-sm font-bold text-white hover:bg-gray-800 transition-colors">See free times</a>
                 </div>
             </div>
         </div>

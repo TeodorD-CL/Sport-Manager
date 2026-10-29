@@ -18,11 +18,12 @@ x-init="
     scrollToBottom();
 "
 @scroll-to-bottom.window="$nextTick(() => scrollToBottom())"
-class="fixed bottom-6 right-6 z-50 font-sans">
+@open-chat.window="if (!open) toggle()"
+class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 font-sans">
 
     <!-- Floating Chat Toggle Button -->
     <button @click="toggle()" :aria-expanded="open" aria-label="Toggle chat assistant"
-            class="flex items-center justify-center w-14 h-14 bg-black text-[#f4f3ed] border-[3px] border-black rounded-none shadow-[4px_4px_0_rgba(0,0,0,1)] hover:shadow-[2px_2px_0_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-150 focus:outline-none">
+            class="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-black text-[#f4f3ed] border-[3px] border-black rounded-none shadow-[4px_4px_0_rgba(0,0,0,1)] hover:shadow-[2px_2px_0_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-150 focus:outline-none">
         <!-- Close Icon -->
         <svg x-show="open" x-cloak class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
@@ -81,7 +82,7 @@ class="fixed bottom-6 right-6 z-50 font-sans">
                         <p class="text-xs leading-relaxed font-medium select-text break-words">
                             {{ $msg['text'] }}
                         </p>
-                        <span class="block text-[9px] text-gray-400 text-right mt-1.5 select-none">
+                        <span class="block text-xs text-gray-300 text-right mt-1.5 select-none">
                             {{ $msg['timestamp'] }}
                         </span>
                     </div>
@@ -99,7 +100,7 @@ class="fixed bottom-6 right-6 z-50 font-sans">
                             <div class="text-xs leading-relaxed prose prose-sm select-text break-words">
                                 {!! \App\Livewire\Chatbot::parseMarkdown($msg['text']) !!}
                             </div>
-                            <span class="block text-[9px] text-gray-400 text-left mt-1.5 select-none">
+                            <span class="block text-xs text-gray-600 text-left mt-1.5 select-none">
                                 {{ $msg['timestamp'] }}
                             </span>
                         @endif
@@ -112,17 +113,17 @@ class="fixed bottom-6 right-6 z-50 font-sans">
             <!-- Pending Booking Confirmation Card -->
             <div class="px-4 py-3 bg-[#e8e5dc] border-t-[2px] border-black flex flex-col gap-2">
                 <div class="border-[2px] border-black bg-white p-3 shadow-[2px_2px_0_rgba(0,0,0,1)] rounded-none">
-                    <div class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Confirmation Request</div>
+                    <div class="text-xs font-bold text-gray-600 uppercase tracking-widest">Confirmation Request</div>
                     <div class="text-xs font-bold text-black mt-1 uppercase">{{ $pendingBooking['court_name'] }} ({{ $pendingBooking['court_type'] }})</div>
                     <div class="text-[11px] text-gray-700 font-semibold mt-0.5">{{ $pendingBooking['facility_name'] }}</div>
                     
                     <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-black/10 select-none">
                         <div>
-                            <span class="text-[8px] text-gray-500 block uppercase font-bold tracking-wider">Date</span>
+                            <span class="text-xs text-gray-600 block uppercase font-bold tracking-wider">Date</span>
                             <span class="text-[11px] font-bold">{{ $pendingBooking['date'] }}</span>
                         </div>
                         <div>
-                            <span class="text-[8px] text-gray-500 block uppercase font-bold tracking-wider">Time</span>
+                            <span class="text-xs text-gray-600 block uppercase font-bold tracking-wider">Time</span>
                             <span class="text-[11px] font-bold">{{ $pendingBooking['start_time'] }} - {{ $pendingBooking['end_time'] }}</span>
                         </div>
                     </div>
@@ -150,7 +151,7 @@ class="fixed bottom-6 right-6 z-50 font-sans">
         <div class="px-4 py-2 bg-[#f4f3ed] border-t-[2px] border-black flex flex-wrap gap-1.5 select-none">
             @foreach($suggestions as $suggestion)
                 <button wire:click="sendPreset(@js($suggestion))"
-                        class="bg-white hover:bg-black hover:text-white text-black font-semibold text-[10px] py-1.5 px-2.5 border border-black transition-all duration-150 active:translate-y-0.5">
+                        class="bg-white hover:bg-black hover:text-white text-black font-semibold text-xs py-1.5 px-2.5 border border-black transition-all duration-150 active:translate-y-0.5">
                     {{ $suggestion }}
                 </button>
             @endforeach
@@ -169,12 +170,12 @@ class="fixed bottom-6 right-6 z-50 font-sans">
                 Send
             </button>
         </form>
-        @error('message') <p class="bg-white px-3 pb-2 text-[10px] font-bold text-red-600">{{ $message }}</p> @enderror
+        @error('message') <p class="bg-white px-3 pb-2 text-xs font-bold text-red-700">{{ $message }}</p> @enderror
 
         <!-- API status info -->
         @if(!config('services.gemini.key'))
-            <div class="bg-amber-100 text-amber-900 border-t border-black px-3 py-1.5 text-[9px] font-semibold text-center select-none">
-                💡 Demo Mode active. Set <code class="bg-amber-200 px-1 py-0.5 rounded">GEMINI_API_KEY</code> in `.env` to enable full smart AI.
+            <div class="bg-amber-100 text-amber-900 border-t border-black px-3 py-1.5 text-xs font-semibold text-center select-none">
+                Demo Mode active. Set <code class="bg-amber-200 px-1 py-0.5 rounded">GEMINI_API_KEY</code> in `.env` to enable full smart AI.
             </div>
         @endif
     </div>

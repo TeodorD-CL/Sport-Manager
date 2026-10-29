@@ -89,6 +89,7 @@
     </style>
 </head>
 <body class="font-sans antialiased min-h-screen flex flex-col">
+    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:bg-black focus:text-white focus:px-4 focus:py-2 focus:text-sm focus:font-bold">Skip to content</a>
 
     <!-- Navigation -->
     <header class="border-b border-black" x-data="{ open: false }">
@@ -102,21 +103,21 @@
 
                 <!-- Desktop nav -->
                 <nav class="hidden md:flex items-center gap-8">
-                    <a href="/" class="text-[13px] font-bold text-black border-b-2 {{ request()->is('/') ? 'border-black' : 'border-transparent hover:border-black' }} pb-1 mt-1">Browse</a>
+                    <a href="/" class="text-[13px] font-bold border-b-2 pb-1 mt-1 {{ request()->is('/') ? 'text-black border-black' : 'text-gray-600 border-transparent hover:text-black transition-colors' }}">Browse</a>
                     
                     @auth
                         @if(Auth::user()->hasAdminPanelAccess())
-                            <a href="/admin" class="text-[13px] font-bold text-gray-500 hover:text-black transition-colors">Admin</a>
+                            <a href="/admin" class="text-[13px] font-bold text-gray-600 hover:text-black transition-colors">Admin</a>
                         @endif
-                        <a href="/dashboard" class="text-[13px] font-bold {{ request()->is('dashboard') ? 'text-black border-b-2 border-black pb-1 mt-1' : 'text-gray-500 hover:text-black transition-colors' }}">Bookings</a>
-                        <a href="/profile" class="text-[13px] font-bold {{ request()->is('profile') ? 'text-black border-b-2 border-black pb-1 mt-1' : 'text-gray-500 hover:text-black transition-colors' }}">Profile</a>
+                        <a href="/dashboard" class="text-[13px] font-bold {{ request()->is('dashboard') ? 'text-black border-b-2 border-black pb-1 mt-1' : 'text-gray-600 hover:text-black transition-colors' }}">Bookings</a>
+                        <a href="/profile" class="text-[13px] font-bold {{ request()->is('profile') ? 'text-black border-b-2 border-black pb-1 mt-1' : 'text-gray-600 hover:text-black transition-colors' }}">Profile</a>
                         <form method="POST" action="/logout" class="inline">
                             @csrf
-                            <button type="submit" class="text-[13px] font-bold text-gray-500 hover:text-black transition-colors">Sign out</button>
+                            <button type="submit" class="text-[13px] font-bold text-gray-600 hover:text-black transition-colors">Sign out</button>
                         </form>
                     @else
-                        <a href="/login" class="text-[13px] font-bold text-gray-500 hover:text-black transition-colors">Sign in</a>
-                        <a href="/register" class="text-[13px] font-bold text-gray-500 hover:text-black transition-colors">Register</a>
+                        <a href="/login" class="text-[13px] font-bold text-gray-600 hover:text-black transition-colors">Sign in</a>
+                        <a href="/register" class="text-[13px] font-bold text-gray-600 hover:text-black transition-colors">Register</a>
                     @endauth
                 </nav>
 
@@ -147,7 +148,7 @@
         </nav>
     </header>
 
-    <main class="flex-1">
+    <main id="main" class="flex-1 pb-24">
         {{ $slot }}
     </main>
 

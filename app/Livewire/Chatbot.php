@@ -36,10 +36,10 @@ class Chatbot extends Component
     public ?array $pendingBooking = null;
 
     public array $suggestions = [
-        "🏸 Where can I play Padel?",
-        "🎾 Do you have Tennis courts?",
-        "📅 What are the cancellation rules?",
-        "⚽ Football courts & prices",
+        "Where can I play Padel?",
+        "Do you have Tennis courts?",
+        "What are the cancellation rules?",
+        "Football courts & prices",
     ];
 
     public function mount()
