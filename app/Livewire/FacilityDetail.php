@@ -72,6 +72,7 @@ class FacilityDetail extends Component
 
     public function updatedSelectedDate()
     {
+        $this->notice = '';
         $this->loadAvailableSlots();
     }
 
@@ -126,6 +127,7 @@ class FacilityDetail extends Component
         $this->selectedCourtId = $courtId;
         $this->selectedSlot = ['start' => $start, 'end' => $end->isSameDay($slot[0]) ? $end->format('H:i') : '24:00'];
         $this->selectedRentals = [];
+        $this->notice = '';
         $this->rentalOptions = $this->facility->courts->firstWhere('id', $courtId)->availableRentals()
             ->map(fn ($rental) => $rental->only(['id', 'name', 'price']))
             ->all();

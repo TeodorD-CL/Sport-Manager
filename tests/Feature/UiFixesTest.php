@@ -490,11 +490,16 @@ class UiFixesTest extends TestCase
         Livewire::withQueryParams(['date' => '2030-06-03', 'court' => $court->id, 'slot' => '19:00'])
             ->test(FacilityDetail::class, ['id' => $facility->id])
             ->assertSet('showBookingModal', false)
-            ->assertSee('That time is no longer available.');
+            ->assertSee('That time is no longer available.')
+            ->call('selectSlot', $court->id, '20:00')
+            ->assertDontSee('That time is no longer available.');
 
         Livewire::withQueryParams(['date' => '2030-06-03', 'court' => $court->id, 'slot' => '03:00'])
             ->test(FacilityDetail::class, ['id' => $facility->id])
-            ->assertSet('showBookingModal', false);
+            ->assertSet('showBookingModal', false)
+            ->assertSee('That time is no longer available.')
+            ->set('selectedDate', '2030-06-04')
+            ->assertDontSee('That time is no longer available.');
     }
 
     public function test_signing_in_from_elsewhere_forgets_an_abandoned_booking(): void
