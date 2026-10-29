@@ -11,6 +11,8 @@ services:
         value: production
       - key: APP_DEBUG
         value: "false"
+      - key: APP_TIMEZONE
+        value: Europe/Skopje
       - key: APP_URL
         fromService:
           type: web

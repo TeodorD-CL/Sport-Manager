@@ -36,10 +36,10 @@ class Chatbot extends Component
     public ?array $pendingBooking = null;
 
     public array $suggestions = [
-        "🏸 Where can I play Padel?",
-        "🎾 Do you have Tennis courts?",
-        "📅 What are the cancellation rules?",
-        "⚽ Football courts & prices",
+        "Where can I play Padel?",
+        "Do you have Tennis courts?",
+        "What are the cancellation rules?",
+        "Football courts & prices",
     ];
 
     public function mount()
@@ -273,16 +273,25 @@ class Chatbot extends Component
             $maxLoops = 3;
             $loopCount = 0;
             $model = config('services.gemini.model');
+            // PHP kills a request after 30s, so every Gemini call must finish within 25s of the first one.
+            $deadline = now()->addSeconds(25);
 
             while ($loopCount < $maxLoops) {
+                $left = now()->diffInSeconds($deadline);
+                if ($left < 2) {
+                    return "⏳ That took too long. Here is what I can find from my offline system database:\n\n" . $this->getMockResponse($userMsg);
+                }
+                $timeout = min(20, $left);
+
                 // The key goes in a header: URLs end up in exception messages and logs.
                 // Gemini usually answers in about 1s but often spikes past 10s or returns 503 "high demand",
-                // so allow 20s and retry once after a short pause.
+                // so allow up to 20s and retry once after a short pause if the retry still fits before the deadline.
                 $response = Http::withHeaders([
                     'Content-Type' => 'application/json',
                     'x-goog-api-key' => $apiKey,
-                ])->connectTimeout(5)->timeout(20)->retry(2, 1000, fn ($e) => $e instanceof ConnectionException
-                    || ($e instanceof RequestException && ($e->response->status() === 429 || $e->response->serverError())), throw: false
+                ])->connectTimeout(min(5, $timeout))->timeout($timeout)->retry(2, 1000, fn ($e) => ($e instanceof ConnectionException
+                    || ($e instanceof RequestException && ($e->response->status() === 429 || $e->response->serverError())))
+                    && now()->diffInSeconds($deadline) > $timeout + 1, throw: false
                 )->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
                     'contents' => $contents,
                     'systemInstruction' => [

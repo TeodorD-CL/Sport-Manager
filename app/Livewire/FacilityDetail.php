@@ -35,6 +35,13 @@ class FacilityDetail extends Component
         $this->facility = Facility::with(['courts', 'amenities'])->findOrFail($id);
         $this->selectedDate = Carbon::today()->format('Y-m-d');
         $this->loadAvailableSlots();
+
+        // Late in the day nothing is left, so open on tomorrow instead of a page of past hours.
+        if (!collect($this->availableSlots)->contains(fn ($data) => collect($data['slots'])->contains('available', true))) {
+            $this->selectedDate = Carbon::tomorrow()->format('Y-m-d');
+            $this->loadAvailableSlots();
+        }
+
         $this->refreshReviews();
     }
 
@@ -59,7 +66,11 @@ class FacilityDetail extends Component
         foreach ($this->facility->courts as $court) {
             $this->availableSlots[$court->id] = [
                 'court' => $court,
-                'slots' => $slotsByCourt[$court->id],
+                // Hours that have already started can't be booked, so they aren't shown.
+                'slots' => array_values(array_filter(
+                    $slotsByCourt[$court->id],
+                    fn (array $slot) => Carbon::parse($this->selectedDate . ' ' . $slot['start'])->isFuture()
+                )),
             ];
         }
     }

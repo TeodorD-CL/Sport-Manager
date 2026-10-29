@@ -256,4 +256,49 @@ class ChatbotTest extends TestCase
         $this->askBot(Livewire::test(Chatbot::class), 'Hello')->assertSee('Back online');
         Http::assertSentCount(2);
     }
+
+    public function test_slow_replies_stop_before_the_php_time_limit(): void
+    {
+        config(['services.gemini.key' => 'test-key']);
+        Carbon::setTestNow('2026-10-24 12:00:00');
+        Http::fake(['generativelanguage.googleapis.com/*' => function () {
+            Carbon::setTestNow(now()->addSeconds(24)); // the first call used up almost the whole budget
+            return Http::response(['candidates' => [['content' => ['parts' => [['functionCall' => ['name' => 'checkAvailability', 'args' => []]]]]]]]);
+        }]);
+
+        $this->askBot(Livewire::test(Chatbot::class), 'Is anything free?')->assertSee('took too long');
+        Http::assertSentCount(1);
+    }
+
+    public function test_slow_failure_is_not_retried_beyond_the_shared_deadline(): void
+    {
+        config(['services.gemini.key' => 'test-key']);
+        Carbon::setTestNow('2026-10-24 12:00:00');
+        Http::fake(['generativelanguage.googleapis.com/*' => function () {
+            Carbon::setTestNow(now()->addSeconds(20));
+            return Http::response(['error' => 'busy'], 503);
+        }]);
+
+        $this->askBot(Livewire::test(Chatbot::class), 'Hello')->assertSee('quick query fallback');
+        Http::assertSentCount(1);
+    }
+
+    public function test_second_function_call_uses_only_the_remaining_time(): void
+    {
+        config(['services.gemini.key' => 'test-key']);
+        Carbon::setTestNow('2026-10-24 12:00:00');
+        $timeouts = [];
+        Http::fake(['generativelanguage.googleapis.com/*' => function ($request, $options) use (&$timeouts) {
+            $timeouts[] = $options['timeout'];
+            if (count($timeouts) === 1) {
+                Carbon::setTestNow(now()->addSeconds(20));
+                return Http::response(['candidates' => [['content' => ['parts' => [['functionCall' => ['name' => 'checkAvailability', 'args' => []]]]]]]]);
+            }
+            return Http::response(['candidates' => [['content' => ['parts' => [['text' => 'Back online']]]]]]);
+        }]);
+
+        $this->askBot(Livewire::test(Chatbot::class), 'Hello')->assertSee('Back online');
+        Http::assertSentCount(2);
+        $this->assertEquals([20, 5], $timeouts);
+    }
 }
