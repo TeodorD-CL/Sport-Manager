@@ -23,6 +23,11 @@
     </div>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        @if($notice)
+            <div class="mb-8 border-l-4 border-black bg-gray-50 p-4" role="status">
+                <p class="text-sm font-bold text-black">{{ $notice }} <a href="#availability" class="underline">See free times</a></p>
+            </div>
+        @endif
         @if(session('error'))
             <div class="mb-8 border-l-4 border-black bg-gray-50 p-4">
                 <p class="text-sm font-bold text-black">{{ session('error') }}</p>
@@ -161,7 +166,7 @@
                     {{-- Below lg the wrapper dissolves (contents) so only the one-line date row stays pinned while scrolling slots. --}}
                     <div class="max-lg:contents flex items-end justify-between mb-6 border-b border-black pb-2 gap-4">
                         <h2 class="text-xl font-bold text-black tracking-tight max-lg:border-b max-lg:border-black max-lg:pb-2 max-lg:mb-2">Availability</h2>
-                        <div class="max-lg:sticky max-lg:top-0 max-lg:z-20 max-lg:bg-[#f4f3ed] max-lg:py-2 max-lg:mb-4 max-lg:flex max-lg:items-center max-lg:gap-3 max-lg:[&>input]:flex-1" wire:ignore>
+                        <div class="max-lg:sticky max-lg:top-0 max-lg:z-20 max-lg:bg-[#f4f3ed] max-lg:py-2 max-lg:mb-4 max-lg:border-b max-lg:border-gray-300 max-lg:flex max-lg:items-center max-lg:gap-3 max-lg:[&>input]:flex-1" wire:ignore>
                             <label class="block shrink-0 text-xs font-bold text-gray-600 uppercase lg:mb-1">Select Date</label>
                             <input type="text" 
                                    x-data="{ value: @entangle('selectedDate').live }" 

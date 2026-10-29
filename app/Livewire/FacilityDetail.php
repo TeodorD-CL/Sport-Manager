@@ -24,6 +24,10 @@ class FacilityDetail extends Component
     public array $selectedSlot = [];
     public array $selectedRentals = [];
 
+    // Shown when the slot a guest picked before signing in is gone by the time they return.
+    #[Locked]
+    public string $notice = '';
+
     // Kept as plain data so toggling an extra or re-rendering doesn't query reviews and rentals again.
     #[Locked]
     public array $reviewSummary = [];
@@ -57,6 +61,8 @@ class FacilityDetail extends Component
             && collect($this->availableSlots[$court]['slots'] ?? [])->contains(fn ($slot) => $slot['start'] === $start && $slot['available']);
         if ($free) {
             $this->selectSlot($court, $start);
+        } elseif (is_string($start)) {
+            $this->notice = 'That time is no longer available. Pick another one below.';
         }
         if ($court !== null || $start !== null) {
             // Drop the slot from the address so a reload doesn't reopen the modal.

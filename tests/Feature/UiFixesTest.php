@@ -489,7 +489,8 @@ class UiFixesTest extends TestCase
 
         Livewire::withQueryParams(['date' => '2030-06-03', 'court' => $court->id, 'slot' => '19:00'])
             ->test(FacilityDetail::class, ['id' => $facility->id])
-            ->assertSet('showBookingModal', false);
+            ->assertSet('showBookingModal', false)
+            ->assertSee('That time is no longer available.');
 
         Livewire::withQueryParams(['date' => '2030-06-03', 'court' => $court->id, 'slot' => '03:00'])
             ->test(FacilityDetail::class, ['id' => $facility->id])
