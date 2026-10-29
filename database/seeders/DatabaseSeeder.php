@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $customer = User::firstOrCreate(['email' => 'user@test.com'], [
-            'name' => 'Test User',
+            'name' => 'Stefan Ilievski',
             'password' => $password,
             'phone' => '555-0002',
         ]);
@@ -64,7 +64,7 @@ class DatabaseSeeder extends Seeder
             'closing_hour' => 23,
         ]);
         $central->amenities()->syncWithoutDetaching([$parking->id, $wifi->id, $showers->id, $lockers->id, $cafe->id]);
-        Court::firstOrCreate(['facility_id' => $central->id, 'name' => 'Football Court A'], ['type' => 'Football', 'base_price_per_hour' => 120000, 'image_path' => 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1600&q=80']);
+        Court::firstOrCreate(['facility_id' => $central->id, 'name' => 'Football Court A'], ['type' => 'Football', 'base_price_per_hour' => 120000, 'image_path' => '/images/football-pitch.jpg']);
         Court::firstOrCreate(['facility_id' => $central->id, 'name' => 'Tennis Court 1'], ['type' => 'Tennis', 'base_price_per_hour' => 80000, 'image_path' => 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?auto=format&fit=crop&w=1600&q=80']);
         Court::firstOrCreate(['facility_id' => $central->id, 'name' => 'Indoor Pool'], ['type' => 'Swimming', 'base_price_per_hour' => 120000, 'image_path' => 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1600&q=80']);
 

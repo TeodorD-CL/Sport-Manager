@@ -61,7 +61,8 @@ class SearchFacilities extends Component
 
     public function render()
     {
-        $query = Facility::with(['courts', 'amenities'])
+        // Courts in the order they were added, so each card shows the same (first) court's photo every time.
+        $query = Facility::with(['courts' => fn ($courts) => $courts->orderBy('created_at')->orderBy('id'), 'amenities'])
             ->withAvg('reviews', 'rating')
             ->withCount('reviews');
 

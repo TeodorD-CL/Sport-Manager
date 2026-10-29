@@ -24,6 +24,10 @@ class FacilityDetail extends Component
     public array $selectedSlot = [];
     public array $selectedRentals = [];
 
+    // Shown when the slot a guest picked before signing in is gone by the time they return.
+    #[Locked]
+    public string $notice = '';
+
     // Kept as plain data so toggling an extra or re-rendering doesn't query reviews and rentals again.
     #[Locked]
     public array $reviewSummary = [];
@@ -43,10 +47,36 @@ class FacilityDetail extends Component
         }
 
         $this->refreshReviews();
+
+        // Coming back from "Sign in to Book": reopen the slot the user had picked.
+        // A malformed or past date (an old link) would leave an empty picker and no slots, so keep the default then.
+        $date = request()->query('date');
+        $parsed = is_string($date) ? \DateTime::createFromFormat('!Y-m-d', $date) : false;
+        $usable = $parsed && $parsed->format('Y-m-d') === $date && !Carbon::instance($parsed)->lt(Carbon::today());
+        if ($usable && $date !== $this->selectedDate) {
+            $this->selectedDate = $date;
+            $this->loadAvailableSlots();
+        }
+        $court = request()->query('court');
+        $start = request()->query('slot');
+        // Only a slot that is still free: someone may have taken it while the guest signed in.
+        // The slot is checked on the day the user picked, never on the default day that replaced a bad date.
+        $free = ($date === null || $usable) && is_string($court) && is_string($start)
+            && collect($this->availableSlots[$court]['slots'] ?? [])->contains(fn ($slot) => $slot['start'] === $start && $slot['available']);
+        if ($free) {
+            $this->selectSlot($court, $start);
+        } elseif (is_string($start)) {
+            $this->notice = 'That time is no longer available. Pick another one below.';
+        }
+        if ($court !== null || $start !== null) {
+            // Drop the slot from the address so a reload doesn't reopen the modal.
+            $this->js('history.replaceState(null, "", location.pathname)');
+        }
     }
 
     public function updatedSelectedDate()
     {
+        $this->notice = '';
         $this->loadAvailableSlots();
     }
 
@@ -101,10 +131,24 @@ class FacilityDetail extends Component
         $this->selectedCourtId = $courtId;
         $this->selectedSlot = ['start' => $start, 'end' => $end->isSameDay($slot[0]) ? $end->format('H:i') : '24:00'];
         $this->selectedRentals = [];
+        $this->notice = '';
         $this->rentalOptions = $this->facility->courts->firstWhere('id', $courtId)->availableRentals()
             ->map(fn ($rental) => $rental->only(['id', 'name', 'price']))
             ->all();
         $this->showBookingModal = true;
+    }
+
+    /** Sends a guest to sign in, then back here with the same slot open. */
+    public function loginToBook()
+    {
+        session()->put('url.intended', route('facility', [
+            'id' => $this->facility->id,
+            'date' => $this->selectedDate,
+            'court' => $this->selectedCourtId,
+            'slot' => $this->selectedSlot['start'] ?? null,
+        ]));
+
+        return redirect()->route('login', ['book' => 1]);
     }
 
     public function toggleRental($rentalId)

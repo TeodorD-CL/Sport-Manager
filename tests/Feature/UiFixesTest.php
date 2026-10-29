@@ -249,7 +249,7 @@ class UiFixesTest extends TestCase
         $thumbnails = substr_count($html, 'w-16 h-16 sm:w-20 sm:h-20');
 
         $this->assertSame(1, $thumbnails);
-        $this->assertStringContainsString('<img src="https://example.com/court.jpg" alt="" loading="lazy" class="w-16 h-16', $html);
+        $this->assertStringContainsString('<img src="https://example.com/court.jpg" alt="" loading="lazy" width="80" height="80" class="w-16 h-16', $html);
     }
 
     public function test_court_thumbnail_survives_a_date_change(): void
@@ -259,7 +259,7 @@ class UiFixesTest extends TestCase
 
         Livewire::test(FacilityDetail::class, ['id' => $facility->id])
             ->set('selectedDate', Carbon::today()->addDays(3)->format('Y-m-d'))
-            ->assertSeeHtml('<img src="/storage/photos/court.jpg" alt="" loading="lazy" class="w-16 h-16');
+            ->assertSeeHtml('<img src="/storage/photos/court.jpg" alt="" loading="lazy" width="80" height="80" class="w-16 h-16');
     }
 
     public function test_search_shows_count_filter_chips_and_chat_card(): void
@@ -383,7 +383,7 @@ class UiFixesTest extends TestCase
 
     public function test_layout_has_skip_link_and_highlights_only_the_current_page(): void
     {
-        $browse = '<a href="/" class="text-[13px] font-bold border-b-2 pb-1 mt-1 text-black border-black">Browse</a>';
+        $browse = '<a href="/" class="text-[13px] font-bold border-b-2 py-2.5 text-black border-black">Browse</a>';
         $facility = $this->createFacility();
 
         $this->get('/')
@@ -402,13 +402,14 @@ class UiFixesTest extends TestCase
         $facility->amenities()->attach($amenity);
         $this->createCourt($facility);
         $date = Carbon::tomorrow()->format('Y-m-d');
+        $dateLabel = Carbon::tomorrow()->format('D, j M');
 
         Livewire::test(SearchFacilities::class)
             ->set('type', 'Tennis')
             ->set('date', $date)
             ->set('amenityFilters', [$amenity->id])
             ->assertSeeHtml('aria-label="Remove filter Tennis"')
-            ->assertSeeHtml('aria-label="Remove filter ' . $date . '"')
+            ->assertSeeHtml('aria-label="Remove filter ' . $dateLabel . '"')
             ->assertSeeHtml('aria-label="Remove filter Parking"')
             ->assertSee('1 facility')
             ->call('clearFilters')
@@ -436,5 +437,116 @@ class UiFixesTest extends TestCase
         $count = count($component->get('messages'));
         $component->call('sendPreset', $component->get('suggestions')[0]);
         $this->assertGreaterThan($count, count($component->get('messages')));
+    }
+
+    public function test_guest_returns_to_the_same_slot_after_signing_in(): void
+    {
+        $this->travelTo(Carbon::parse('2030-06-03 09:30'));
+        $facility = $this->createFacility();
+        $court = $this->createCourt($facility);
+
+        Livewire::test(FacilityDetail::class, ['id' => $facility->id])
+            ->call('selectSlot', $court->id, '19:00')
+            ->call('loginToBook')
+            ->assertRedirect(route('login', ['book' => 1]));
+
+        $intended = session('url.intended');
+        $this->assertStringContainsString('date=2030-06-03', $intended);
+        $this->assertStringContainsString('slot=19%3A00', $intended);
+
+        parse_str(parse_url($intended, PHP_URL_QUERY), $query);
+        Livewire::withQueryParams($query)->test(FacilityDetail::class, ['id' => $facility->id])
+            ->assertSet('showBookingModal', true)
+            ->assertSet('selectedCourtId', $court->id)
+            ->assertSet('selectedSlot.start', '19:00');
+    }
+
+    public function test_peak_slots_are_marked(): void
+    {
+        $this->travelTo(Carbon::parse('2030-06-03 09:30'));
+        $facility = $this->createFacility();
+        $court = $this->createCourt($facility);
+
+        $slots = collect(Livewire::test(FacilityDetail::class, ['id' => $facility->id])->get('availableSlots')[$court->id]['slots']);
+
+        $this->assertSame(['18:00', '19:00', '20:00', '21:00'], $slots->where('peak', true)->pluck('start')->values()->all());
+    }
+
+    public function test_return_link_does_not_reopen_a_slot_that_was_taken_meanwhile(): void
+    {
+        $this->travelTo(Carbon::parse('2030-06-03 09:30'));
+        $facility = $this->createFacility();
+        $court = $this->createCourt($facility);
+        $start = Carbon::parse('2030-06-03 19:00');
+        Booking::create([
+            'user_id' => User::factory()->create()->id,
+            'court_id' => $court->id,
+            'start_time' => $start,
+            'end_time' => $start->copy()->addHour(),
+            'status' => 'confirmed',
+            'total_price' => 12000,
+        ]);
+
+        Livewire::withQueryParams(['date' => '2030-06-03', 'court' => $court->id, 'slot' => '19:00'])
+            ->test(FacilityDetail::class, ['id' => $facility->id])
+            ->assertSet('showBookingModal', false)
+            ->assertSee('That time is no longer available.')
+            ->call('selectSlot', $court->id, '20:00')
+            ->assertDontSee('That time is no longer available.');
+
+        Livewire::withQueryParams(['date' => '2030-06-03', 'court' => $court->id, 'slot' => '03:00'])
+            ->test(FacilityDetail::class, ['id' => $facility->id])
+            ->assertSet('showBookingModal', false)
+            ->assertSee('That time is no longer available.')
+            ->set('selectedDate', '2030-06-04')
+            ->assertDontSee('That time is no longer available.');
+    }
+
+    public function test_return_link_with_a_bad_or_past_date_keeps_the_default_date(): void
+    {
+        $this->travelTo(Carbon::parse('2030-06-03 09:30'));
+        $facility = $this->createFacility();
+        $court = $this->createCourt($facility);
+
+        foreach (['garbage', '2030-02-30', '2020-01-01', '2030-06-02'] as $date) {
+            Livewire::withQueryParams(['date' => $date, 'court' => $court->id, 'slot' => '10:00'])
+                ->test(FacilityDetail::class, ['id' => $facility->id])
+                ->assertSet('selectedDate', '2030-06-03')
+                ->assertSet('showBookingModal', false)
+                ->assertSee('That time is no longer available.');
+        }
+
+        Livewire::withQueryParams(['date' => '2030-06-03', 'court' => $court->id, 'slot' => '10:00'])
+            ->test(FacilityDetail::class, ['id' => $facility->id])
+            ->assertSet('showBookingModal', true);
+    }
+
+    public function test_signing_in_from_elsewhere_forgets_an_abandoned_booking(): void
+    {
+        $booking = '/facility/x?date=2030-06-03&court=y&slot=19%3A00';
+
+        $this->withSession(['url.intended' => $booking])->get('/login?book=1');
+        $this->assertSame($booking, session('url.intended'));
+
+        $this->get('/login');
+        $this->assertNull(session('url.intended'));
+
+        // Other return addresses, like a guest opening /dashboard, are kept.
+        $this->withSession(['url.intended' => '/dashboard'])->get('/register');
+        $this->assertSame('/dashboard', session('url.intended'));
+    }
+
+    public function test_search_card_shows_the_first_added_court_photo(): void
+    {
+        // Inserted second but dated earlier, so insertion order alone would pick the wrong photo.
+        $facility = $this->createFacility();
+        $this->createCourt($facility, ['name' => 'Second', 'image_path' => '/images/second.jpg']);
+        $this->travelTo(now()->subMinute());
+        $this->createCourt($facility, ['name' => 'First', 'image_path' => '/images/first.jpg']);
+        $this->travelBack();
+
+        Livewire::test(SearchFacilities::class)
+            ->assertSeeHtml('src="/images/first.jpg"')
+            ->assertDontSeeHtml('src="/images/second.jpg"');
     }
 }
