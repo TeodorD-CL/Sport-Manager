@@ -54,7 +54,7 @@ class Court extends Model
 
     /**
      * Hourly slots for these courts on one day, keyed by court id, using one query for all their bookings.
-     * Each slot has start and end ("H:i", with "24:00" for midnight), available (free and still ahead) and price in cents.
+     * Each slot has start and end ("H:i", with "24:00" for midnight), available (free and still ahead), peak and price in cents.
      * Opening hours come from $court->facility, so set that relation to avoid a query per court.
      */
     public static function slotsOn(iterable $courts, Carbon $day): array
@@ -86,6 +86,7 @@ class Court extends Model
                     'end' => $end->isSameDay($start) ? $end->format('H:i') : '24:00',
                     'available' => $start->isFuture()
                         && !$bookings->contains(fn ($b) => $b->start_time < $end && $b->end_time > $start),
+                    'peak' => $hour >= Booking::PEAK_START_HOUR && $hour < Booking::PEAK_END_HOUR,
                     'price' => Booking::calculatePrice($court, $start, $end),
                 ];
             }

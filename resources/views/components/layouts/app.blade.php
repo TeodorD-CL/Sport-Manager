@@ -60,7 +60,7 @@
             color: #111 !important;
             font-family: 'Inter', sans-serif !important;
             font-weight: bold !important;
-            font-size: 10px !important;
+            font-size: 12px !important;
             text-transform: uppercase !important;
             letter-spacing: 0.1em !important;
         }
@@ -97,27 +97,27 @@
             <div class="flex justify-between items-center h-[72px]">
                 <!-- Logo -->
                 <a href="/" class="flex items-center gap-2 h-full py-5">
-                    <img src="/images/logo_icon.jpg" alt="Sport Manager" class="h-6 w-6 object-contain mix-blend-multiply">
+                    <img src="/images/logo_icon_64.jpg" alt="" width="24" height="24" class="h-6 w-6 object-contain mix-blend-multiply">
                     <span class="font-bold text-[15px] tracking-tight text-black mt-0.5">Sport Manager</span>
                 </a>
 
                 <!-- Desktop nav -->
                 <nav class="hidden md:flex items-center gap-8">
-                    <a href="/" class="text-[13px] font-bold border-b-2 pb-1 mt-1 {{ request()->is('/') ? 'text-black border-black' : 'text-gray-600 border-transparent hover:text-black transition-colors' }}">Browse</a>
+                    <a href="/" class="text-[13px] font-bold border-b-2 py-2.5 {{ request()->is('/') ? 'text-black border-black' : 'text-gray-600 border-transparent hover:text-black transition-colors' }}">Browse</a>
                     
                     @auth
                         @if(Auth::user()->hasAdminPanelAccess())
-                            <a href="/admin" class="text-[13px] font-bold text-gray-600 hover:text-black transition-colors">Admin</a>
+                            <a href="/admin" class="text-[13px] font-bold py-2.5 border-b-2 border-transparent text-gray-600 hover:text-black transition-colors">Admin</a>
                         @endif
-                        <a href="/dashboard" class="text-[13px] font-bold {{ request()->is('dashboard') ? 'text-black border-b-2 border-black pb-1 mt-1' : 'text-gray-600 hover:text-black transition-colors' }}">Bookings</a>
-                        <a href="/profile" class="text-[13px] font-bold {{ request()->is('profile') ? 'text-black border-b-2 border-black pb-1 mt-1' : 'text-gray-600 hover:text-black transition-colors' }}">Profile</a>
+                        <a href="/dashboard" class="text-[13px] font-bold py-2.5 border-b-2 {{ request()->is('dashboard') ? 'text-black border-black' : 'text-gray-600 border-transparent hover:text-black transition-colors' }}">Bookings</a>
+                        <a href="/profile" class="text-[13px] font-bold py-2.5 border-b-2 {{ request()->is('profile') ? 'text-black border-black' : 'text-gray-600 border-transparent hover:text-black transition-colors' }}">Profile</a>
                         <form method="POST" action="/logout" class="inline">
                             @csrf
-                            <button type="submit" class="text-[13px] font-bold text-gray-600 hover:text-black transition-colors">Sign out</button>
+                            <button type="submit" class="text-[13px] font-bold py-2.5 border-b-2 border-transparent text-gray-600 hover:text-black transition-colors">Sign out</button>
                         </form>
                     @else
-                        <a href="/login" class="text-[13px] font-bold text-gray-600 hover:text-black transition-colors">Sign in</a>
-                        <a href="/register" class="text-[13px] font-bold text-gray-600 hover:text-black transition-colors">Register</a>
+                        <a href="/login" class="text-[13px] font-bold py-2.5 border-b-2 border-transparent text-gray-600 hover:text-black transition-colors">Sign in</a>
+                        <a href="/register" class="text-[13px] font-bold py-2.5 border-b-2 border-transparent text-gray-600 hover:text-black transition-colors">Register</a>
                     @endauth
                 </nav>
 
@@ -151,6 +151,21 @@
     <main id="main" class="flex-1 pb-24">
         {{ $slot }}
     </main>
+
+    <footer class="border-t border-black">
+        <div class="max-w-7xl mx-auto px-6 py-8 pr-20 sm:pr-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-[13px] text-gray-600">
+            <p><span class="font-bold text-black">Sport Manager</span> &middot; Sports courts across North Macedonia, bookable by the hour.</p>
+            <nav class="flex gap-6 font-bold" aria-label="Footer">
+                <a href="/" class="py-2 hover:text-black">Browse</a>
+                @auth
+                    <a href="/dashboard" class="py-2 hover:text-black">Bookings</a>
+                @else
+                    <a href="/login" class="py-2 hover:text-black">Sign in</a>
+                    <a href="/register" class="py-2 hover:text-black">Register</a>
+                @endauth
+            </nav>
+        </div>
+    </footer>
 
     @livewireScripts
     @livewire('chatbot')

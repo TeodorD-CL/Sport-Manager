@@ -1,11 +1,15 @@
+@push('head')
+    <meta name="description" content="Book sports courts across North Macedonia by the hour: live availability for football, tennis, padel and swimming in Skopje, Bitola, Ohrid and more.">
+@endpush
+
 <div>
-    <div class="max-w-7xl mx-auto px-6 pt-16 pb-12">
+    <div class="max-w-7xl mx-auto px-6 pt-10 md:pt-16 pb-12">
         {{-- Hero --}}
-        <div class="mb-12">
-            <p class="text-[10px] font-bold text-gray-500 tracking-[0.1em] uppercase mb-6">
+        <div class="mb-8 md:mb-12">
+            <p class="text-xs font-bold text-gray-600 tracking-[0.1em] uppercase mb-4 md:mb-6">
                 Sports Facilities &bull; North Macedonia
             </p>
-            <h1 class="text-[52px] leading-[1.05] font-bold text-[#111] tracking-[-0.03em] max-w-2xl mb-6">
+            <h1 class="text-4xl md:text-[52px] leading-[1.05] font-bold text-[#111] tracking-[-0.03em] max-w-2xl mb-4 md:mb-6">
                 Every court in the country,<br>bookable by the hour.
             </h1>
             <p class="text-[15px] text-gray-600 leading-relaxed max-w-lg">
@@ -15,7 +19,7 @@
         </div>
 
         {{-- Search Form --}}
-        <div class="mb-12 border-y border-black">
+        <div class="mb-8 md:mb-12 border-y border-black">
             <form wire:submit="search" class="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] divide-y md:divide-y-0 md:divide-x divide-black">
                 
                 {{-- City --}}
@@ -51,11 +55,11 @@
                 </div>
 
                 {{-- Date --}}
-                <div class="relative py-3 px-4" wire:ignore>
+                <div class="relative py-3 px-4 flex flex-col justify-center" wire:ignore>
                     <label class="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">Date</label>
                     <input type="text" data-search-date
                            x-data="{ value: @entangle('date').live }" 
-                           x-init="flatpickr($el, { dateFormat: 'Y-m-d', minDate: 'today', defaultDate: value, onChange: function(selectedDates, dateStr) { value = dateStr; } })" 
+                           x-init="flatpickr($el, { dateFormat: 'Y-m-d', altInput: true, altFormat: 'D, j M Y', minDate: 'today', defaultDate: value, onChange: function(selectedDates, dateStr) { value = dateStr; } })" 
                            class="w-full bg-transparent text-[14px] font-bold text-black border-none p-0 focus:ring-0 cursor-pointer placeholder-black" 
                            placeholder="Select date">
                 </div>
@@ -70,12 +74,12 @@
         {{-- Filters & Sort --}}
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
             <div class="flex items-center gap-4 flex-wrap">
-                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Amenities</span>
+                <span class="text-xs font-bold text-gray-600 uppercase tracking-widest">Amenities</span>
                 <div class="flex flex-wrap gap-2">
                     @foreach($amenities as $amenity)
                         <label class="cursor-pointer">
                             <input type="checkbox" wire:model.live="amenityFilters" value="{{ $amenity->id }}" class="sr-only peer">
-                            <div class="px-3 py-1 text-[11px] border border-gray-300 text-gray-700 peer-checked:bg-[#111] peer-checked:text-white peer-checked:border-[#111] transition-colors">
+                            <div class="px-3 py-1.5 text-[13px] border border-gray-300 text-gray-700 peer-checked:bg-[#111] peer-checked:text-white peer-checked:border-[#111] transition-colors">
                                 {{ $amenity->name }}
                             </div>
                         </label>
@@ -84,9 +88,9 @@
             </div>
             
             <div class="flex items-center gap-2" x-data="{ open: false }">
-                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Sort</span>
+                <span class="text-xs font-bold text-gray-600 uppercase tracking-widest">Sort</span>
                 <div class="relative">
-                    <button type="button" @click="open = !open" @click.outside="open = false" class="flex items-center gap-1.5 bg-transparent text-[13px] font-bold text-black border-none p-0 focus:outline-none">
+                    <button type="button" @click="open = !open" @click.outside="open = false" class="flex items-center gap-1.5 bg-transparent text-[13px] font-bold text-black border-none px-0 py-2 focus:outline-none">
                         @php
                             $sortLabels = [
                                 '' => 'Recommended',
@@ -124,7 +128,7 @@
                     <button type="button" wire:click="$set('type', '')" class="{{ $chip }}" aria-label="Remove filter {{ $type }}">{{ $type }} <span aria-hidden="true">&times;</span></button>
                 @endif
                 @if($date)
-                    <button type="button" x-on:click="document.querySelector('[data-search-date]')._flatpickr.clear(); $wire.set('date', '')" class="{{ $chip }}" aria-label="Remove filter {{ $date }}">{{ $date }} <span aria-hidden="true">&times;</span></button>
+                    <button type="button" x-on:click="document.querySelector('[data-search-date]')._flatpickr.clear(); $wire.set('date', '')" class="{{ $chip }}" aria-label="Remove filter {{ $dateLabel = rescue(fn () => \Carbon\Carbon::createFromFormat('Y-m-d', $date)->format('D, j M'), $date, false) }}">{{ $dateLabel }} <span aria-hidden="true">&times;</span></button>
                 @endif
                 @foreach($activeAmenities as $amenity)
                     <button type="button" wire:click="$set('amenityFilters', @js(array_values(array_diff($amenityFilters, [$amenity->id]))))" class="{{ $chip }}" aria-label="Remove filter {{ $amenity->name }}">{{ $amenity->name }} <span aria-hidden="true">&times;</span></button>
@@ -136,14 +140,14 @@
         {{-- Results Header --}}
         <div class="flex items-end gap-3 mb-4">
             <h2 class="text-xl font-bold text-black tracking-tight">Facilities</h2>
-            <span class="text-[11px] text-gray-500 pb-0.5">{{ $facilities->total() }} {{ Str::plural('facility', $facilities->total()) }}</span>
+            <span class="text-xs text-gray-600 pb-0.5">{{ $facilities->total() }} {{ Str::plural('facility', $facilities->total()) }}</span>
         </div>
         <div class="w-full h-px bg-black mb-6"></div>
 
         {{-- Loading State Overlay --}}
         <div class="relative min-h-[400px]">
             <div wire:loading.flex class="absolute inset-0 bg-stone-bg/50 z-10 flex items-start justify-center pt-20">
-                <span class="text-[11px] font-bold uppercase tracking-widest text-black">Updating...</span>
+                <span class="text-xs font-bold uppercase tracking-widest text-black">Updating...</span>
             </div>
 
             {{-- Cards Grid --}}
@@ -160,7 +164,7 @@
                     <a href="/facility/{{ $facility->id }}" class="group block">
                         {{-- Image Box --}}
                         <div class="relative aspect-[4/3] bg-[#e8e5dc] mb-4 overflow-hidden border border-gray-200">
-                            <img src="{{ $image }}" alt="{{ $facility->name }}" class="w-full h-full object-cover">
+                            <img src="{{ str_replace('w=1600', 'w=800', $image) }}" alt="{{ $facility->name }}" width="800" height="600" loading="{{ $loop->index < 3 ? 'eager' : 'lazy' }}" class="w-full h-full object-cover">
                             
 
 
@@ -171,16 +175,16 @@
                             <div class="flex justify-between items-start mb-1">
                                 <h3 class="font-bold text-[15px] text-black tracking-tight group-hover:underline">{{ $facility->name }}</h3>
                                 @if($avg > 0)
-                                    <div class="flex items-center gap-1 text-[11px] font-bold text-black">
+                                    <div class="flex items-center gap-1 text-xs font-bold text-black">
                                         <svg class="w-3 h-3 text-[#d13a3a]" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                                        {{ number_format($avg, 1) }} <span class="text-gray-400 font-normal">({{ $facility->reviews_count }})</span>
+                                        {{ number_format($avg, 1) }} <span class="text-gray-600 font-normal">({{ $facility->reviews_count }})</span>
                                     </div>
                                 @endif
                             </div>
                             
-                            <p class="text-[12px] text-gray-500 mb-2">{{ $facility->city }}</p>
+                            <p class="text-[13px] text-gray-600 mb-2">{{ $facility->city }}</p>
                             
-                            <div class="flex flex-wrap gap-2 text-[10px] text-gray-500 mb-4 uppercase tracking-widest">
+                            <div class="flex flex-wrap gap-2 text-xs text-gray-600 mb-4 uppercase tracking-wider">
                                 {!! $facility->amenities->take(3)->pluck('name')->map(fn ($name) => e($name))->join(' &nbsp;&bull;&nbsp; ') !!}
                                 @if($facility->amenities->count() > 3)
                                     &nbsp;&bull;&nbsp; +{{ $facility->amenities->count() - 3 }}
@@ -191,10 +195,11 @@
 
                             <div class="flex justify-between items-baseline">
                                 <div>
+                                    <span class="text-xs font-bold text-gray-600 uppercase tracking-widest mr-1">From</span>
                                     <span class="text-[16px] font-bold text-black">{{ explode(' ', $facility->lowest_price_formatted)[0] }}</span>
-                                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">MKD / hr</span>
+                                    <span class="text-xs font-bold text-gray-600 uppercase tracking-widest ml-1">MKD / hr</span>
                                 </div>
-                                <span class="text-[11px] font-bold text-black uppercase tracking-widest group-hover:tracking-[0.15em] transition-all">
+                                <span class="text-xs font-bold text-black uppercase tracking-widest group-hover:tracking-[0.15em] transition-all">
                                     Book &rarr;
                                 </span>
                             </div>
@@ -203,7 +208,7 @@
                 @empty
                     <div class="col-span-full py-16 border-y border-black text-center">
                         <p class="text-sm font-bold text-black uppercase tracking-widest mb-2">No facilities found</p>
-                        <p class="text-xs text-gray-500 mb-6">Adjust your search parameters to find available courts.</p>
+                        <p class="text-xs text-gray-600 mb-6">Adjust your search parameters to find available courts.</p>
                         <button x-on:click="document.querySelector('[data-search-date]')._flatpickr.clear(); $wire.clearFilters()" class="text-xs font-bold text-black underline hover:no-underline">
                             Clear filters
                         </button>

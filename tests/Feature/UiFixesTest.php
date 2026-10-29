@@ -249,7 +249,7 @@ class UiFixesTest extends TestCase
         $thumbnails = substr_count($html, 'w-16 h-16 sm:w-20 sm:h-20');
 
         $this->assertSame(1, $thumbnails);
-        $this->assertStringContainsString('<img src="https://example.com/court.jpg" alt="" loading="lazy" class="w-16 h-16', $html);
+        $this->assertStringContainsString('<img src="https://example.com/court.jpg" alt="" loading="lazy" width="80" height="80" class="w-16 h-16', $html);
     }
 
     public function test_court_thumbnail_survives_a_date_change(): void
@@ -259,7 +259,7 @@ class UiFixesTest extends TestCase
 
         Livewire::test(FacilityDetail::class, ['id' => $facility->id])
             ->set('selectedDate', Carbon::today()->addDays(3)->format('Y-m-d'))
-            ->assertSeeHtml('<img src="/storage/photos/court.jpg" alt="" loading="lazy" class="w-16 h-16');
+            ->assertSeeHtml('<img src="/storage/photos/court.jpg" alt="" loading="lazy" width="80" height="80" class="w-16 h-16');
     }
 
     public function test_search_shows_count_filter_chips_and_chat_card(): void
@@ -383,7 +383,7 @@ class UiFixesTest extends TestCase
 
     public function test_layout_has_skip_link_and_highlights_only_the_current_page(): void
     {
-        $browse = '<a href="/" class="text-[13px] font-bold border-b-2 pb-1 mt-1 text-black border-black">Browse</a>';
+        $browse = '<a href="/" class="text-[13px] font-bold border-b-2 py-2.5 text-black border-black">Browse</a>';
         $facility = $this->createFacility();
 
         $this->get('/')
@@ -402,13 +402,14 @@ class UiFixesTest extends TestCase
         $facility->amenities()->attach($amenity);
         $this->createCourt($facility);
         $date = Carbon::tomorrow()->format('Y-m-d');
+        $dateLabel = Carbon::tomorrow()->format('D, j M');
 
         Livewire::test(SearchFacilities::class)
             ->set('type', 'Tennis')
             ->set('date', $date)
             ->set('amenityFilters', [$amenity->id])
             ->assertSeeHtml('aria-label="Remove filter Tennis"')
-            ->assertSeeHtml('aria-label="Remove filter ' . $date . '"')
+            ->assertSeeHtml('aria-label="Remove filter ' . $dateLabel . '"')
             ->assertSeeHtml('aria-label="Remove filter Parking"')
             ->assertSee('1 facility')
             ->call('clearFilters')
@@ -436,5 +437,38 @@ class UiFixesTest extends TestCase
         $count = count($component->get('messages'));
         $component->call('sendPreset', $component->get('suggestions')[0]);
         $this->assertGreaterThan($count, count($component->get('messages')));
+    }
+
+    public function test_guest_returns_to_the_same_slot_after_signing_in(): void
+    {
+        $this->travelTo(Carbon::parse('2030-06-03 09:30'));
+        $facility = $this->createFacility();
+        $court = $this->createCourt($facility);
+
+        Livewire::test(FacilityDetail::class, ['id' => $facility->id])
+            ->call('selectSlot', $court->id, '19:00')
+            ->call('loginToBook')
+            ->assertRedirect(route('login'));
+
+        $intended = session('url.intended');
+        $this->assertStringContainsString('date=2030-06-03', $intended);
+        $this->assertStringContainsString('slot=19%3A00', $intended);
+
+        parse_str(parse_url($intended, PHP_URL_QUERY), $query);
+        Livewire::withQueryParams($query)->test(FacilityDetail::class, ['id' => $facility->id])
+            ->assertSet('showBookingModal', true)
+            ->assertSet('selectedCourtId', $court->id)
+            ->assertSet('selectedSlot.start', '19:00');
+    }
+
+    public function test_peak_slots_are_marked(): void
+    {
+        $this->travelTo(Carbon::parse('2030-06-03 09:30'));
+        $facility = $this->createFacility();
+        $court = $this->createCourt($facility);
+
+        $slots = collect(Livewire::test(FacilityDetail::class, ['id' => $facility->id])->get('availableSlots')[$court->id]['slots']);
+
+        $this->assertSame(['18:00', '19:00', '20:00', '21:00'], $slots->where('peak', true)->pluck('start')->values()->all());
     }
 }

@@ -43,6 +43,18 @@ class FacilityDetail extends Component
         }
 
         $this->refreshReviews();
+
+        // Coming back from "Sign in to Book": reopen the slot the user had picked.
+        $date = request()->query('date');
+        if (is_string($date) && $date !== $this->selectedDate) {
+            $this->selectedDate = $date;
+            $this->loadAvailableSlots();
+        }
+        $court = request()->query('court');
+        $start = request()->query('slot');
+        if (is_string($court) && is_string($start)) {
+            $this->selectSlot($court, $start);
+        }
     }
 
     public function updatedSelectedDate()
@@ -105,6 +117,19 @@ class FacilityDetail extends Component
             ->map(fn ($rental) => $rental->only(['id', 'name', 'price']))
             ->all();
         $this->showBookingModal = true;
+    }
+
+    /** Sends a guest to sign in, then back here with the same slot open. */
+    public function loginToBook()
+    {
+        session()->put('url.intended', route('facility', [
+            'id' => $this->facility->id,
+            'date' => $this->selectedDate,
+            'court' => $this->selectedCourtId,
+            'slot' => $this->selectedSlot['start'] ?? null,
+        ]));
+
+        return redirect()->route('login');
     }
 
     public function toggleRental($rentalId)

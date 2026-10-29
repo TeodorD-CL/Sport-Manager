@@ -1,4 +1,4 @@
-<x-layouts.app>
+<x-layouts.app title="Sign in – Sport Manager">
     <div class="min-h-[80vh] flex items-center justify-center py-12 px-4 bg-white">
         <div class="w-full max-w-md">
             
@@ -18,12 +18,12 @@
                     @csrf
                     <div>
                         <label for="email" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Email Address</label>
-                        <input type="email" name="email" id="email" value="{{ old('email') }}" required autofocus
+                        <input type="email" name="email" id="email" autocomplete="email" value="{{ old('email') }}" required autofocus
                                class="w-full border border-gray-300 p-3 text-black focus:outline-none focus:border-black focus:ring-1 focus:ring-black rounded-none">
                     </div>
                     <div>
                         <label for="password" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Password</label>
-                        <input type="password" name="password" id="password" required
+                        <input type="password" name="password" id="password" autocomplete="current-password" required
                                class="w-full border border-gray-300 p-3 text-black focus:outline-none focus:border-black focus:ring-1 focus:ring-black rounded-none">
                     </div>
                     <div class="flex items-center">

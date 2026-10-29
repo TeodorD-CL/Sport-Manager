@@ -63,7 +63,7 @@ class AuthController extends Controller
 
         Auth::login($user);
 
-        return redirect('/');
+        return redirect()->intended('/');
     }
 
     // Emails are stored lowercase (see User::email()), so lookups and the unique check must use the same form.
