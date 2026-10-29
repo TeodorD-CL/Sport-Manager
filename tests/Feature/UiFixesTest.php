@@ -502,6 +502,25 @@ class UiFixesTest extends TestCase
             ->assertDontSee('That time is no longer available.');
     }
 
+    public function test_return_link_with_a_bad_or_past_date_keeps_the_default_date(): void
+    {
+        $this->travelTo(Carbon::parse('2030-06-03 09:30'));
+        $facility = $this->createFacility();
+        $court = $this->createCourt($facility);
+
+        foreach (['garbage', '2030-02-30', '2020-01-01', '2030-06-02'] as $date) {
+            Livewire::withQueryParams(['date' => $date, 'court' => $court->id, 'slot' => '10:00'])
+                ->test(FacilityDetail::class, ['id' => $facility->id])
+                ->assertSet('selectedDate', '2030-06-03')
+                ->assertSet('showBookingModal', false)
+                ->assertSee('That time is no longer available.');
+        }
+
+        Livewire::withQueryParams(['date' => '2030-06-03', 'court' => $court->id, 'slot' => '10:00'])
+            ->test(FacilityDetail::class, ['id' => $facility->id])
+            ->assertSet('showBookingModal', true);
+    }
+
     public function test_signing_in_from_elsewhere_forgets_an_abandoned_booking(): void
     {
         $booking = '/facility/x?date=2030-06-03&court=y&slot=19%3A00';

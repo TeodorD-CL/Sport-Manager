@@ -49,15 +49,19 @@ class FacilityDetail extends Component
         $this->refreshReviews();
 
         // Coming back from "Sign in to Book": reopen the slot the user had picked.
+        // A malformed or past date (an old link) would leave an empty picker and no slots, so keep the default then.
         $date = request()->query('date');
-        if (is_string($date) && $date !== $this->selectedDate) {
+        $parsed = is_string($date) ? \DateTime::createFromFormat('!Y-m-d', $date) : false;
+        $usable = $parsed && $parsed->format('Y-m-d') === $date && !Carbon::instance($parsed)->lt(Carbon::today());
+        if ($usable && $date !== $this->selectedDate) {
             $this->selectedDate = $date;
             $this->loadAvailableSlots();
         }
         $court = request()->query('court');
         $start = request()->query('slot');
         // Only a slot that is still free: someone may have taken it while the guest signed in.
-        $free = is_string($court) && is_string($start)
+        // The slot is checked on the day the user picked, never on the default day that replaced a bad date.
+        $free = ($date === null || $usable) && is_string($court) && is_string($start)
             && collect($this->availableSlots[$court]['slots'] ?? [])->contains(fn ($slot) => $slot['start'] === $start && $slot['available']);
         if ($free) {
             $this->selectSlot($court, $start);
