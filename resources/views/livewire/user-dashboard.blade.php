@@ -3,10 +3,10 @@
     {{-- Header --}}
     <div class="flex justify-between items-end mb-8">
         <div>
-            <p class="text-[10px] font-bold text-gray-500 tracking-[0.1em] uppercase mb-4">
+            <p class="text-xs font-bold text-gray-600 tracking-[0.1em] uppercase mb-4">
                 Account &bull; {{ Auth::user()->hasAdminPanelAccess() ? 'Admin User' : 'Standard User' }}
             </p>
-            <h1 class="text-[52px] leading-none font-bold text-[#111] tracking-tight mb-3">
+            <h1 class="text-4xl md:text-[52px] leading-none font-bold text-[#111] tracking-tight mb-3">
                 Bookings
             </h1>
             <p class="text-[15px] text-gray-600">
@@ -16,7 +16,7 @@
         
         <div class="text-right flex flex-col items-end pb-2">
             <span class="text-[40px] leading-none font-bold text-black">{{ $upcomingCount }}</span>
-            <span class="text-[9px] font-bold text-gray-500 tracking-[0.1em] uppercase mt-1">Upcoming</span>
+            <span class="text-xs font-bold text-gray-600 tracking-[0.1em] uppercase mt-1">Upcoming</span>
         </div>
     </div>
     
@@ -25,11 +25,11 @@
     {{-- Tabs --}}
     <div class="flex gap-8 mb-4">
         <button wire:click="$set('tab', 'upcoming')"
-                class="pb-3 text-[13px] font-bold border-b-2 transition-colors {{ $tab === 'upcoming' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-black' }}">
+                class="pb-3 text-[13px] font-bold border-b-2 transition-colors {{ $tab === 'upcoming' ? 'border-black text-black' : 'border-transparent text-gray-600 hover:text-black' }}">
             Upcoming
         </button>
         <button wire:click="$set('tab', 'past')"
-                class="pb-3 text-[13px] font-bold border-b-2 transition-colors {{ $tab === 'past' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-black' }}">
+                class="pb-3 text-[13px] font-bold border-b-2 transition-colors {{ $tab === 'past' ? 'border-black text-black' : 'border-transparent text-gray-600 hover:text-black' }}">
             Past & cancelled
         </button>
     </div>
@@ -67,27 +67,27 @@
     @else
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             @foreach($bookings as $booking)
-                <div class="bg-white border border-gray-200 p-6 flex flex-col md:flex-row gap-6">
+                <div class="bg-white border border-gray-200 p-6 flex flex-col lg:flex-row gap-6">
                     <div class="flex-1 flex flex-col">
                         <div class="flex justify-between items-start mb-6">
                             <div>
                                 <h3 class="font-bold text-[18px] text-black tracking-tight mb-1">{{ $booking->court->name }}</h3>
-                                <a href="/facility/{{ $booking->court->facility->id }}" class="text-[13px] text-gray-500 hover:text-black hover:underline transition-colors">
+                                <a href="/facility/{{ $booking->court->facility->id }}" class="text-[13px] text-gray-600 hover:text-black hover:underline transition-colors">
                                     {{ $booking->court->facility->name }}
                                 </a>
                             </div>
-                            <div class="px-2 py-1 border border-black text-[9px] font-bold uppercase tracking-widest text-black">
+                            <div class="px-2 py-1 border border-black text-xs font-bold uppercase tracking-widest text-black">
                                 {{ $booking->status }}
                             </div>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4 mb-8">
                             <div>
-                                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Date</p>
+                                <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">Date</p>
                                 <p class="text-[14px] font-bold text-black">{{ $booking->start_time->format('d M Y') }}</p>
                             </div>
                             <div>
-                                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Time</p>
+                                <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">Time</p>
                                 <p class="text-[14px] font-bold text-black">{{ $booking->start_time->format('H:i') }} &mdash; {{ $booking->end_time->format('H:i') }}</p>
                             </div>
                         </div>
@@ -96,8 +96,8 @@
                         
                         <div class="flex justify-between items-end">
                             <div>
-                                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Total</p>
-                                <p class="text-[16px] font-bold text-black">{{ explode(' ', $booking->formatted_total_price)[0] }} <span class="text-[10px] tracking-widest uppercase">MKD</span></p>
+                                <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">Total</p>
+                                <p class="text-[16px] font-bold text-black">{{ explode(' ', $booking->formatted_total_price)[0] }} <span class="text-xs tracking-widest uppercase">MKD</span></p>
                             </div>
 
                             <div class="flex gap-3">
@@ -105,11 +105,11 @@
                                     <button wire:click="cancelBooking(@js($booking->id))"
                                             wire:loading.attr="disabled"
                                             wire:confirm="Are you sure you want to cancel this reservation?"
-                                            class="text-[11px] font-bold text-black uppercase tracking-widest hover:underline transition-all py-2">
+                                            class="text-xs font-bold text-black uppercase tracking-widest hover:underline transition-all py-2">
                                         Cancel
                                     </button>
                                 @endif
-                                <a href="/facility/{{ $booking->court->facility->id }}" class="bg-[#111] text-white px-5 py-2 text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-colors flex items-center">
+                                <a href="/facility/{{ $booking->court->facility->id }}" class="bg-[#111] text-white px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-black transition-colors flex items-center">
                                     Book again
                                 </a>
                             </div>
@@ -118,7 +118,7 @@
 
                     {{-- QR code: below the details on phones (shown at the venue), a side column from md up. --}}
                     @if($booking->status !== 'cancelled' && $booking->qr_code)
-                    <div class="flex flex-col items-center justify-center shrink-0 border-t border-gray-200 pt-6 md:border-t-0 md:border-l md:pt-0 md:pl-6">
+                    <div class="flex flex-col items-center justify-center shrink-0 border-t border-gray-200 pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
                         <div class="p-2 border border-black bg-white">
                             {!! \SimpleSoftwareIO\QrCode\Facades\QrCode::size(100)->color(17, 17, 17)->generate($booking->qr_code) !!}
                         </div>
