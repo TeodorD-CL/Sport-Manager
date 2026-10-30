@@ -116,13 +116,13 @@
                         </div>
                     </div>
 
-                    {{-- QR Code Column --}}
+                    {{-- QR code: below the details on phones (shown at the venue), a side column from md up. --}}
                     @if($booking->status !== 'cancelled' && $booking->qr_code)
-                    <div class="flex flex-col items-center justify-center border-l border-gray-200 pl-6 shrink-0 hidden md:flex">
+                    <div class="flex flex-col items-center justify-center shrink-0 border-t border-gray-200 pt-6 md:border-t-0 md:border-l md:pt-0 md:pl-6">
                         <div class="p-2 border border-black bg-white">
                             {!! \SimpleSoftwareIO\QrCode\Facades\QrCode::size(100)->color(17, 17, 17)->generate($booking->qr_code) !!}
                         </div>
-                        <span class="text-[9px] font-mono font-bold text-gray-500 uppercase mt-3 tracking-[0.2em]">{{ Str::limit($booking->qr_code, 8, '') }}</span>
+                        <span class="text-xs font-mono font-bold text-gray-600 uppercase mt-3 tracking-[0.2em]">{{ Str::limit($booking->qr_code, 8, '') }}</span>
                     </div>
                     @endif
                 </div>
