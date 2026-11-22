@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 use Illuminate\Session\Middleware\AuthenticateSession;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -16,7 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [AuthenticateSession::class]);
 
         // Render sits behind a proxy. Trusting the proxy that calls the app gives each visitor their own IP for rate limits.
-        $middleware->trustProxies(at: '*');
+        // X-Forwarded-Host is not trusted: a client could set it and get password reset links pointing at another site.
+        $middleware->trustProxies(at: '*', headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

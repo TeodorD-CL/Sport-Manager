@@ -478,6 +478,16 @@ class AvailabilityRulesTest extends TestCase
         $this->get('/login')->assertSee('Forgot password?');
     }
 
+    public function test_password_reset_link_ignores_a_forged_forwarded_host(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['email' => 'ana@example.com']);
+
+        $this->withHeader('X-Forwarded-Host', 'evil.example')->post('/forgot-password', ['email' => 'ana@example.com']);
+
+        Notification::assertSentTo($user, ResetPassword::class, fn (ResetPassword $n) => !str_contains($n->toMail($user)->actionUrl, 'evil.example'));
+    }
+
     public function test_password_can_be_reset_with_a_valid_token_only(): void
     {
         $user = User::factory()->create(['email' => 'ana@example.com']);
