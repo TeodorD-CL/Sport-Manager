@@ -67,6 +67,9 @@ return [
 
     'timezone' => env('APP_TIMEZONE', 'UTC'),
 
+    // How many days ahead customers can book. Admin bookings aren't limited.
+    'booking_horizon_days' => (int) env('BOOKING_HORIZON_DAYS', 60),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

@@ -1,5 +1,5 @@
 <x-layouts.app title="Sign in – Sport Manager">
-    <div class="min-h-[80vh] flex items-center justify-center py-12 px-4 bg-white">
+    <div class="min-h-[80vh] flex items-center justify-center py-12 px-4">
         <div class="w-full max-w-md">
             
             <div class="mb-10">
@@ -7,7 +7,12 @@
                 <p class="text-gray-600 mt-2">Welcome back to Sport Manager.</p>
             </div>
 
-            <div class="border border-gray-300 p-8">
+            <div class="border border-gray-300 bg-white p-8">
+                @if(session('status'))
+                    <div class="mb-6 border-l-4 border-black bg-gray-50 p-4" role="status">
+                        <p class="text-sm font-bold text-black">{{ session('status') }}</p>
+                    </div>
+                @endif
                 @if($errors->any())
                     <div class="mb-6 border-l-4 border-red-600 bg-red-50 p-4">
                         @foreach($errors->all() as $error)<p class="text-sm font-bold text-red-900">{{ $error }}</p>@endforeach
@@ -26,11 +31,12 @@
                         <input type="password" name="password" id="password" autocomplete="current-password" required
                                class="w-full border border-gray-300 p-3 text-black focus:outline-none focus:border-black focus:ring-1 focus:ring-black rounded-none">
                     </div>
-                    <div class="flex items-center">
+                    <div class="flex items-center justify-between gap-4">
                         <label class="flex items-center gap-3 cursor-pointer">
                             <input type="checkbox" name="remember" id="remember" class="w-4 h-4 border-gray-300 rounded-none text-black focus:ring-black">
                             <span class="text-sm font-medium text-gray-700">Remember me</span>
                         </label>
+                        <a href="{{ route('password.request') }}" class="text-sm font-bold text-black hover:underline py-2">Forgot password?</a>
                     </div>
                     <div class="pt-4 border-t border-gray-200">
                         <button type="submit" class="w-full bg-black text-white py-3 font-bold text-sm hover:bg-gray-800 transition-colors">

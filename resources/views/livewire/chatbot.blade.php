@@ -2,7 +2,8 @@
     open: false,
     toggle() {
         this.open = !this.open;
-        if (this.open) { this.$nextTick(() => this.scrollToBottom()); }
+        // Focus moves into the panel when it opens and back to the chat button when it closes.
+        this.$nextTick(() => this.open ? (this.scrollToBottom(), this.$refs.input.focus()) : this.$refs.fab.focus());
     },
     scrollToBottom() { 
         const container = this.$refs.messagesContainer;
@@ -19,10 +20,13 @@ x-init="
 "
 @scroll-to-bottom.window="$nextTick(() => scrollToBottom())"
 @open-chat.window="if (!open) toggle()"
-class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 font-sans">
+@keydown.escape.window="if (open) toggle()"
+{{-- z-40 keeps the booking dialog (z-50) and photo viewer above the assistant. --}}
+class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 font-sans">
 
     <!-- Floating Chat Toggle Button -->
-    <button @click="toggle()" :aria-expanded="open" aria-label="Toggle chat assistant"
+    {{-- Hidden while the panel is open: the panel has its own close button, so there is only one. --}}
+    <button x-ref="fab" x-show="!open" @click="toggle()" :aria-expanded="open" aria-label="Open chat assistant"
             class="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-black text-[#f4f3ed] border-[3px] border-black rounded-none shadow-[4px_4px_0_rgba(0,0,0,1)] hover:shadow-[2px_2px_0_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-150 focus:outline-none">
         <!-- Close Icon -->
         <svg x-show="open" x-cloak class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,20 +47,21 @@ class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 font-sans">
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100 translate-y-0 scale-100"
          x-transition:leave-end="opacity-0 translate-y-4 scale-95"
-         class="absolute bottom-20 right-0 w-[440px] max-w-[calc(100vw-2rem)] h-[620px] max-h-[calc(100vh-7rem)] bg-[#f4f3ed] border-[3px] border-black shadow-[6px_6px_0_rgba(0,0,0,1)] flex flex-col z-50">
+         role="dialog" aria-label="Sporty assistant"
+         class="absolute bottom-0 right-0 w-[440px] max-w-[calc(100vw-2rem)] h-[620px] max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] bg-[#f4f3ed] border-[3px] border-black shadow-[6px_6px_0_rgba(0,0,0,1)] flex flex-col z-50">
         
         <!-- Header -->
-        <div class="bg-black text-white px-4 py-3.5 flex justify-between items-center border-b-[3px] border-black">
+        <div class="bg-black text-white px-4 py-1 flex justify-between items-center border-b-[3px] border-black">
             <div class="flex items-center gap-2">
                 <div class="w-2.5 h-2.5 bg-green-400 border border-black animate-pulse"></div>
                 <span class="font-bold tracking-wider text-xs uppercase">Sporty Assistant</span>
             </div>
             
-            <div class="flex items-center gap-3">
+            <div class="flex items-center -mr-2">
                 <!-- Clear Button -->
                 <button wire:click="clearChat" 
-                        title="Clear history"
-                        class="text-gray-400 hover:text-white transition-colors duration-150 focus:outline-none">
+                        title="Clear history" aria-label="Clear chat history"
+                        class="w-11 h-11 flex items-center justify-center text-gray-300 hover:text-white transition-colors duration-150">
                     <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                     </svg>
@@ -64,7 +69,7 @@ class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 font-sans">
                 
                 <!-- Close Button -->
                 <button @click="toggle()" aria-label="Close chat"
-                        class="text-gray-400 hover:text-white transition-colors duration-150 focus:outline-none">
+                        class="w-11 h-11 flex items-center justify-center text-gray-300 hover:text-white transition-colors duration-150">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -160,7 +165,7 @@ class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 font-sans">
         <!-- Input Form -->
         <form wire:submit.prevent="sendMessage" 
               class="p-3 bg-white border-t-[2px] border-black flex gap-2">
-            <input type="text" 
+            <input type="text" x-ref="input"
                    wire:model="message" 
                    placeholder="Ask Sporty about courts, rules, prices..." 
                    class="flex-1 px-3 py-2 text-xs border-[2px] border-black bg-[#f4f3ed] text-black placeholder-gray-500 focus:bg-white focus:outline-none rounded-none" 
@@ -174,8 +179,8 @@ class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 font-sans">
 
         <!-- API status info -->
         @if(!config('services.gemini.key'))
-            <div class="bg-amber-100 text-amber-900 border-t border-black px-3 py-1.5 text-xs font-semibold text-center select-none">
-                Demo Mode active. Set <code class="bg-amber-200 px-1 py-0.5 rounded">GEMINI_API_KEY</code> in `.env` to enable full smart AI.
+            <div class="bg-[#e8e5dc] text-black border-t border-black px-3 py-1.5 text-xs font-semibold text-center select-none">
+                Basic mode: simple answers only. Use the search to see free times.
             </div>
         @endif
     </div>

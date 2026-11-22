@@ -116,10 +116,12 @@ class FullReviewFindingsTest extends TestCase
 
         $at20 = $run(['date' => $monday->format('Y-m-d'), 'city' => 'prilep', 'start_time' => '20:00']);
         $this->assertCount(2, $at20['courts']);
-        $this->assertSame(['20:00-21:00 (120 MKD)'], $at20['courts'][0]['free_slots']);
+        // The breakdown is included so the assistant explains surcharges instead of guessing them.
+        $this->assertSame(['20:00-21:00: 120 MKD (100 base +20 peak)'], $at20['courts'][0]['free_slots']);
 
         $at19 = $run(['date' => $monday->format('Y-m-d'), 'facility_name' => 'Professional', 'start_time' => '19:00']);
-        $this->assertNull($at19);
+        $this->assertArrayNotHasKey('courts', $at19);
+        $this->assertStringContainsString('No slots are available', $at19['message']);
     }
 
     // 4

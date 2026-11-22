@@ -24,17 +24,17 @@ class UserDashboard extends Component
             return;
         }
 
-        if ($booking->start_time->gt(now()->addHours(24))) {
+        if ($booking->isCancellable()) {
             $booking->update(['status' => 'cancelled']);
             session()->flash('success', 'Booking cancelled successfully.');
         } else {
-            session()->flash('error', 'Cancellations must be made more than 24 hours before the booking start time.');
+            session()->flash('error', 'Cancellations must be made more than ' . Booking::CANCELLATION_HOURS . ' hours before the booking start time.');
         }
     }
 
     public function render()
     {
-        $baseQuery = Booking::with('court.facility')
+        $baseQuery = Booking::with(['court.facility', 'rentals'])
             ->where('user_id', auth()->id());
 
         $upcomingCount = (clone $baseQuery)
@@ -63,8 +63,12 @@ class UserDashboard extends Component
                 ->get();
         }
 
+        // Facilities this user already reviewed, so played bookings elsewhere can offer "Write a review".
+        $reviewed = auth()->user()->reviews()->pluck('facility_id')->all();
+
         return view('livewire.user-dashboard', [
             'bookings'      => $bookings,
+            'reviewed'      => $reviewed,
             'upcomingCount' => $upcomingCount,
             'pastCount'     => $pastCount,
         ]);

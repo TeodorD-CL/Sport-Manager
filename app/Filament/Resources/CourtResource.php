@@ -49,7 +49,26 @@ class CourtResource extends Resource
                     ->disk('public')
                     ->directory('courts')
                     ->image(),
+                // Leave both empty for a court open all year. A season may wrap over New Year (e.g. November–March).
+                Forms\Components\Fieldset::make('Season')
+                    ->schema([
+                        Forms\Components\Select::make('season_start_month')
+                            ->label('Opens in')
+                            ->options(static::months())
+                            ->requiredWith('season_end_month'),
+                        Forms\Components\Select::make('season_end_month')
+                            ->label('Closes after')
+                            ->options(static::months())
+                            ->requiredWith('season_start_month')
+                            ->helperText('Leave both empty for a court open all year.'),
+                    ]),
             ]);
+    }
+
+    /** [1 => 'January', ...] */
+    private static function months(): array
+    {
+        return collect(range(1, 12))->mapWithKeys(fn (int $month) => [$month => now()->startOfYear()->month($month)->format('F')])->all();
     }
 
     public static function table(Table $table): Table
@@ -67,6 +86,8 @@ class CourtResource extends Resource
                 Tables\Columns\TextColumn::make('base_price_per_hour')
                     ->formatStateUsing(fn ($state) => number_format($state / 100, 0) . ' MKD')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('season')
+                    ->state(fn (Court $record) => $record->seasonLabel() ?? 'All year'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime(),
             ])

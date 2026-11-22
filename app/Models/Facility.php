@@ -53,6 +53,11 @@ class Facility extends Model
         return $this->hasMany(Rental::class);
     }
 
+    public function closures(): HasMany
+    {
+        return $this->hasMany(Closure::class);
+    }
+
     public function managers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'facility_user')->withTimestamps();

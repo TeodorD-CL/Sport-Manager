@@ -50,7 +50,7 @@ class ChatbotTest extends TestCase
             ->call('handleBotResponse', 'Hello')
             ->assertCount('messages', 3) // typing replaced with bot message
             ->assertSee('Hello')
-            ->assertSee('AI assistant');
+            ->assertSee('I am Sporty');
     }
 
     public function test_chatbot_preset_clicks_populate_and_send_message(): void
@@ -222,8 +222,8 @@ class ChatbotTest extends TestCase
     public function test_greeting_matches_whole_words_only(): void
     {
         $this->askBot(Livewire::test(Chatbot::class), 'which chips')
-            ->assertDontSee('AI assistant')
-            ->assertSee('Demo Mode');
+            ->assertDontSee('I am Sporty')
+            ->assertSee('simple questions');
     }
 
     public function test_markdown_links_only_allow_paths_on_this_site(): void

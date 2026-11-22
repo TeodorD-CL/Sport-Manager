@@ -1,0 +1,42 @@
+<x-layouts.app title="Reset your password – Sport Manager">
+    <div class="min-h-[80vh] flex items-center justify-center py-12 px-4">
+        <div class="w-full max-w-md">
+
+            <div class="mb-10">
+                <h1 class="text-3xl font-bold text-black tracking-tight">Reset your password</h1>
+                <p class="text-gray-600 mt-2">Enter your account email and we'll send you a link to choose a new password.</p>
+            </div>
+
+            <div class="border border-gray-300 bg-white p-8">
+                @if(session('status'))
+                    <div class="mb-6 border-l-4 border-black bg-gray-50 p-4" role="status">
+                        <p class="text-sm font-bold text-black">{{ session('status') }}</p>
+                    </div>
+                @endif
+                @if($errors->any())
+                    <div class="mb-6 border-l-4 border-red-600 bg-red-50 p-4">
+                        @foreach($errors->all() as $error)<p class="text-sm font-bold text-red-900">{{ $error }}</p>@endforeach
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('password.email') }}" class="space-y-6">
+                    @csrf
+                    <div>
+                        <label for="email" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Email Address</label>
+                        <input type="email" name="email" id="email" autocomplete="email" value="{{ old('email') }}" required autofocus
+                               class="w-full border border-gray-300 p-3 text-black focus:outline-none focus:border-black focus:ring-1 focus:ring-black rounded-none">
+                    </div>
+                    <div class="pt-4 border-t border-gray-200">
+                        <button type="submit" class="w-full bg-black text-white py-3 font-bold text-sm hover:bg-gray-800 transition-colors">
+                            Send reset link
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="mt-8 text-center border-t border-gray-200 pt-8">
+                <p class="text-sm text-gray-600">Remembered it? <a href="/login" class="font-bold text-black hover:underline ml-1">Sign in</a></p>
+            </div>
+        </div>
+    </div>
+</x-layouts.app>

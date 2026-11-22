@@ -11,7 +11,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center gap-4 text-sm text-gray-700">
             @if($avgRating > 0)
                 <div class="flex items-center font-bold text-black">
-                    ★ {{ $avgRating }} <span class="text-gray-600 ml-1 font-normal underline">({{ $reviewCount }} reviews)</span>
+                    ★ {{ $avgRating }} <a href="#reviews" class="text-gray-600 ml-1 font-normal underline hover:text-black">({{ $reviewCount }} {{ Str::plural('review', $reviewCount) }})</a>
                 </div>
             @endif
             <div class="flex items-center">
@@ -135,12 +135,12 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
             
-            {{-- Main Content Column --}}
-            <div class="lg:col-span-8 space-y-12">
+            {{-- Main Content Column. Below lg it dissolves (contents) so availability can come first, before Details and About. --}}
+            <div class="max-lg:contents lg:col-span-8 space-y-12">
                 
                 {{-- About --}}
                 @if($facility->description)
-                <div class="prose max-w-none text-gray-800">
+                <div class="max-lg:order-3 prose max-w-none text-gray-800">
                     <h2 class="text-xl font-bold text-black tracking-tight mb-4 border-b border-black pb-2">About</h2>
                     <p class="leading-relaxed">{{ $facility->description }}</p>
                 </div>
@@ -148,7 +148,7 @@
 
                 {{-- Amenities --}}
                 @if($facility->amenities->count() > 0)
-                <div>
+                <div class="max-lg:order-4">
                     <h2 class="text-xl font-bold text-black tracking-tight mb-4 border-b border-black pb-2">Amenities</h2>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-4 text-sm text-gray-700">
                         @foreach($facility->amenities as $amenity)
@@ -162,26 +162,37 @@
                 @endif
 
                 {{-- Book a Court --}}
-                <div id="availability" class="scroll-mt-6">
+                <div id="availability" class="max-lg:order-1 scroll-mt-6">
                     {{-- Below lg the wrapper dissolves (contents) so only the one-line date row stays pinned while scrolling slots. --}}
                     <div class="max-lg:contents flex items-end justify-between mb-6 border-b border-black pb-2 gap-4">
                         <h2 class="text-xl font-bold text-black tracking-tight max-lg:border-b max-lg:border-black max-lg:pb-2 max-lg:mb-2">Availability</h2>
                         <div class="max-lg:sticky max-lg:top-0 max-lg:z-20 max-lg:bg-[#f4f3ed] max-lg:py-2 max-lg:mb-4 max-lg:border-b max-lg:border-gray-300 max-lg:flex max-lg:items-center max-lg:gap-3 max-lg:[&>input]:flex-1" wire:ignore>
                             <label class="block shrink-0 text-xs font-bold text-gray-600 uppercase lg:mb-1">Select Date</label>
                             <input type="text" 
+                                   id="availability-date"
                                    x-data="{ value: @entangle('selectedDate').live }" 
-                                   x-init="flatpickr($el, { dateFormat: 'Y-m-d', altInput: true, altFormat: 'D, j M Y', minDate: 'today', defaultDate: value, onChange: function(selectedDates, dateStr) { value = dateStr; } })" 
+                                   x-init="flatpickr($el, { dateFormat: 'Y-m-d', altInput: true, altFormat: 'D, j M Y', minDate: 'today', maxDate: @js(\App\Models\Booking::horizonEnd()->format('Y-m-d')), defaultDate: value, ariaDateFormat: 'l, j F Y', onChange: function(selectedDates, dateStr) { value = dateStr; } }); $el._flatpickr.altInput.setAttribute('aria-label', 'Select date')" 
                                    class="w-full lg:w-auto border border-gray-300 px-3 py-2 text-sm font-bold text-black focus:outline-none focus:border-black focus:ring-1 focus:ring-black rounded-none placeholder-black cursor-pointer bg-white" 
                                    placeholder="Select date">
                         </div>
                     </div>
 
-                    <p class="text-sm text-gray-600 mb-6">Pick a free time to book it. Prices include peak ({{ \App\Models\Booking::PEAK_START_HOUR }}:00–{{ \App\Models\Booking::PEAK_END_HOUR }}:00) and weekend surcharges.</p>
+                    <p class="text-sm text-gray-600 mb-6">
+                        Pick a free time to book it. Prices include peak ({{ \App\Models\Booking::PEAK_START_HOUR }}:00–{{ \App\Models\Booking::PEAK_END_HOUR }}:00) and weekend surcharges.
+                        @if(\Carbon\Carbon::parse($selectedDate)->isWeekend())
+                            <span class="font-bold text-black">{{ \Carbon\Carbon::parse($selectedDate)->format('l') }}: weekend prices (+{{ \App\Models\Booking::WEEKEND_SURCHARGE * 100 }}%).</span>
+                        @endif
+                    </p>
 
                     <div class="space-y-8">
                         @foreach($availableSlots as $courtId => $data)
                             {{-- Phones get one court open at a time instead of a page of slot buttons. --}}
-                            <div class="border border-gray-200 p-5" x-data="{ open: {{ $loop->first ? 'true' : 'false' }} || window.matchMedia('(min-width: 1024px)').matches }">
+                            @php
+                                $focused = $focusSport !== '' && $data['court']['type'] === $focusSport;
+                                $season = $data['court']->seasonLabel();
+                                $offSeason = !empty($data['slots']) && collect($data['slots'])->every(fn ($slot) => $slot['closed'] === $data['court']->seasonClosedReason());
+                            @endphp
+                            <div class="border {{ $focused ? 'border-black' : 'border-gray-200' }} p-5" x-data="{ open: {{ $loop->first || $focused ? 'true' : 'false' }} || window.matchMedia('(min-width: 1024px)').matches }">
                                 <button type="button" @click="open = !open" :aria-expanded="open" aria-controls="slots-{{ $courtId }}"
                                         class="w-full flex items-center gap-4 text-left" :class="open && 'mb-4'">
                                     @if($data['court']['image_path'])
@@ -191,24 +202,33 @@
                                         <span class="block font-bold text-black text-lg">{{ $data['court']['name'] }}</span>
                                         <span class="block text-sm text-gray-600">
                                             {{ $data['court']['type'] ?? 'Court' }} · {{ number_format($data['court']['base_price_per_hour'] / 100, 0) }} MKD / hr
+                                            @if($season) · Open {{ $season }} @endif
                                         </span>
                                     </span>
                                     <svg class="w-4 h-4 shrink-0 transition-transform" :class="open && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                 </button>
                                 <div id="slots-{{ $courtId }}" x-show="open">
-                                @if(empty($data['slots']))
+                                @if($offSeason)
+                                    <p class="text-sm font-bold text-black">Closed for the season. Open {{ $season }}.</p>
+                                @elseif(empty($data['slots']))
                                     <p class="text-sm text-gray-600">No more times left on this day. Choose another date above.</p>
                                 @endif
-                                <div class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                                <div @class(['grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2', 'hidden' => $offSeason])>
                                     @foreach($data['slots'] as $slot)
                                         @if($slot['available'])
                                             <button wire:click="selectSlot(@js($courtId), @js($slot['start']))"
-                                                    class="py-2 text-sm font-medium border border-black text-black hover:bg-black hover:text-white transition-colors {{ $slot['peak'] ? 'bg-[#e8e5dc]' : 'bg-white' }}">
+                                                    @if($focused && $slot['start'] === $focusTime) aria-current="true" @endif
+                                                    class="py-2 text-sm font-medium border border-black text-black hover:bg-black hover:text-white transition-colors {{ $slot['peak'] ? 'bg-[#e8e5dc]' : 'bg-white' }} {{ $focused && $slot['start'] === $focusTime ? 'ring-2 ring-black ring-offset-2 ring-offset-[#f4f3ed]' : '' }}">
                                                 {{ $slot['start'] }}
                                                 <span class="block text-xs font-normal">{{ number_format($slot['price'] / 100, 0) }} MKD</span>
                                                 @if($slot['peak'])
                                                     <span class="block text-xs font-bold uppercase tracking-wider">Peak</span>
                                                 @endif
+                                            </button>
+                                        @elseif($slot['closed'])
+                                            <button disabled aria-label="{{ $slot['start'] }} {{ $slot['closed'] }}" title="{{ $slot['closed'] }}" class="py-2 text-sm font-medium border border-dashed border-gray-300 bg-transparent text-gray-600 cursor-not-allowed">
+                                                {{ $slot['start'] }}
+                                                <span class="block text-xs font-bold uppercase tracking-wider">Closed</span>
                                             </button>
                                         @else
                                             <button disabled aria-label="{{ $slot['start'] }} booked" class="py-2 text-sm font-medium border border-gray-200 bg-gray-100 text-gray-600 cursor-not-allowed line-through">
@@ -225,7 +245,7 @@
 
                 {{-- Reviews --}}
                 @if($reviewCount > 0 || Auth::check())
-                <div class="pt-8">
+                <div id="reviews" class="max-lg:order-5 pt-8 scroll-mt-6">
                     <h2 class="text-xl font-bold text-black tracking-tight mb-6 border-b border-black pb-2">Reviews</h2>
                     
                     @if($reviewCount > 0)
@@ -233,7 +253,7 @@
                             @foreach($reviews as $review)
                             <div class="border-b border-gray-200 pb-6">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="font-bold text-black">{{ $review->author }}</span>
+                                    <span class="font-bold text-black">{{ $review->author }} @if($review->date)<span class="ml-2 text-xs font-normal text-gray-600">{{ $review->date }}</span>@endif</span>
                                     <div class="text-sm font-bold text-black">★ {{ $review->rating }}</div>
                                 </div>
                                 @if($review->comment)
@@ -255,7 +275,7 @@
             </div>
 
             {{-- Sidebar Column --}}
-            <div class="lg:col-span-4 order-first lg:order-none">
+            <div class="max-lg:order-2 lg:col-span-4">
                 <div class="border border-gray-300 bg-white p-6 sticky top-24">
                     <h3 class="font-bold text-black mb-4 border-b border-gray-200 pb-2 text-lg">Details</h3>
                     <ul class="space-y-4 text-sm text-gray-800">
@@ -268,11 +288,15 @@
                             {{ $facility->address }}<br>{{ $facility->city }}
                         </li>
                         <li class="flex flex-col">
-                            <span class="font-bold text-xs uppercase text-gray-600 mb-1">Total Courts</span>
-                            {{ $facility->courts->count() }} available
+                            <span class="font-bold text-xs uppercase text-gray-600 mb-1">Courts</span>
+                            {{ $facility->courts->count() }}
+                        </li>
+                        <li class="flex flex-col">
+                            <span class="font-bold text-xs uppercase text-gray-600 mb-1">Booking terms</span>
+                            Free cancellation up to {{ \App\Models\Booking::CANCELLATION_HOURS }} hours before the start. No payment is taken online.
                         </li>
                     </ul>
-                    <a href="#availability" class="mt-6 flex h-12 w-full items-center justify-center bg-black text-sm font-bold text-white hover:bg-gray-800 transition-colors">See free times</a>
+                    <a href="#availability" class="max-lg:hidden mt-6 flex h-12 w-full items-center justify-center bg-black text-sm font-bold text-white hover:bg-gray-800 transition-colors">See free times</a>
                 </div>
             </div>
         </div>
@@ -295,7 +319,17 @@
                 <div class="p-6 overflow-y-auto">
                     <div class="mb-6">
                         <p class="font-bold text-black text-lg mb-1">{{ $selectedCourt?->name }}</p>
-                        <p class="text-sm text-gray-600">{{ \Carbon\Carbon::parse($selectedDate)->format('D, j M Y') }} · {{ $selectedSlot['start'] ?? '' }} - {{ $selectedSlot['end'] ?? '' }}</p>
+                        <p class="text-sm text-gray-600">{{ \Carbon\Carbon::parse($selectedDate)->format('D, j M Y') }} · {{ $selectedSlot['start'] ?? '' }} - {{ $selectedSlot['end'] ?? '' }} ({{ $breakdown['hours'] }} {{ Str::plural('hour', $breakdown['hours']) }})</p>
+                        @if($breakdown['canExtend'] || $breakdown['hours'] > 1)
+                            <div class="flex gap-4 mt-3">
+                                @if($breakdown['canExtend'])
+                                    <button type="button" wire:click="extendBooking" class="text-xs font-bold uppercase tracking-widest text-black underline hover:no-underline py-1">+ Add an hour</button>
+                                @endif
+                                @if($breakdown['hours'] > 1)
+                                    <button type="button" wire:click="shortenBooking" class="text-xs font-bold uppercase tracking-widest text-black underline hover:no-underline py-1">− Remove last hour</button>
+                                @endif
+                            </div>
+                        @endif
                     </div>
 
                     @if(count($rentals) > 0)
@@ -346,6 +380,15 @@
                                 <span class="text-xl font-bold text-black">{{ number_format($breakdown['total'] / 100, 0) }} MKD</span>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="mt-6 border-t border-gray-200 pt-4 text-sm text-gray-700 space-y-1">
+                        @if($breakdown['deadline']->isFuture())
+                            <p>Free cancellation until <span class="font-bold text-black">{{ $breakdown['deadline']->format('D, j M, H:i') }}</span>.</p>
+                        @else
+                            <p class="font-bold text-black">Starts within {{ \App\Models\Booking::CANCELLATION_HOURS }} hours, so it can't be cancelled online.</p>
+                        @endif
+                        <p>No payment is taken online.</p>
                     </div>
                 </div>
 

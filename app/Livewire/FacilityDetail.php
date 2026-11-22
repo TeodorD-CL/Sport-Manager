@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Enums\CourtType;
 use App\Exceptions\BookingException;
 use App\Models\Booking;
 use App\Models\Court;
@@ -34,9 +35,19 @@ class FacilityDetail extends Component
     #[Locked]
     public array $rentalOptions = [];
 
+    // Sport and start time carried over from search: their courts come first and the time is highlighted.
+    #[Locked]
+    public string $focusSport = '';
+    #[Locked]
+    public string $focusTime = '';
+
     public function mount($id)
     {
         $this->facility = Facility::with(['courts', 'amenities'])->findOrFail($id);
+        $sport = request()->query('sport');
+        $this->focusSport = is_string($sport) && CourtType::tryFrom($sport) ? $sport : '';
+        $time = request()->query('time');
+        $this->focusTime = is_string($time) && preg_match('/^([01]\d|2[0-3]):00$/', $time) ? $time : '';
         $this->selectedDate = Carbon::today()->format('Y-m-d');
         $this->loadAvailableSlots();
 
@@ -52,7 +63,8 @@ class FacilityDetail extends Component
         // A malformed or past date (an old link) would leave an empty picker and no slots, so keep the default then.
         $date = request()->query('date');
         $parsed = is_string($date) ? \DateTime::createFromFormat('!Y-m-d', $date) : false;
-        $usable = $parsed && $parsed->format('Y-m-d') === $date && !Carbon::instance($parsed)->lt(Carbon::today());
+        $usable = $parsed && $parsed->format('Y-m-d') === $date && !Carbon::instance($parsed)->lt(Carbon::today())
+            && !Carbon::instance($parsed)->gt(Booking::horizonEnd());
         if ($usable && $date !== $this->selectedDate) {
             $this->selectedDate = $date;
             $this->loadAvailableSlots();
@@ -65,8 +77,18 @@ class FacilityDetail extends Component
             && collect($this->availableSlots[$court]['slots'] ?? [])->contains(fn ($slot) => $slot['start'] === $start && $slot['available']);
         if ($free) {
             $this->selectSlot($court, $start);
+            // Restore the extra hours and extras picked before signing in, as far as they are still free and offered.
+            $until = request()->query('until');
+            while (is_string($until) && ($this->selectedSlot['end'] ?? $until) < $until && $this->extendBooking()) {
+            }
+            $extras = request()->query('extras');
+            $this->selectedRentals = is_string($extras)
+                ? array_values(array_intersect(explode(',', $extras), array_column($this->rentalOptions, 'id')))
+                : [];
         } elseif (is_string($start)) {
             $this->notice = 'That time is no longer available. Pick another one below.';
+        } elseif (is_string($date) && !$usable) {
+            $this->notice = 'That date can\'t be booked online. Showing ' . Carbon::parse($this->selectedDate)->format('D, j M') . ' instead.';
         }
         if ($court !== null || $start !== null) {
             // Drop the slot from the address so a reload doesn't reopen the modal.
@@ -93,7 +115,8 @@ class FacilityDetail extends Component
         $slotsByCourt = Court::slotsOn($courts, Carbon::instance($parsed));
 
         $this->availableSlots = [];
-        foreach ($this->facility->courts as $court) {
+        // Courts of the sport the user searched for come first.
+        foreach ($this->facility->courts->sortBy(fn (Court $court) => $court->type === $this->focusSport ? 0 : 1) as $court) {
             $this->availableSlots[$court->id] = [
                 'court' => $court,
                 // Hours that have already started can't be booked, so they aren't shown.
@@ -114,7 +137,7 @@ class FacilityDetail extends Component
             'average' => round((float) $stats->average, 1),
             'count' => (int) $stats->total,
             'latest' => $this->facility->reviews()->with('user:id,name')->latest()->take(10)->get()
-                ->map(fn ($review) => ['author' => $review->user?->name ?? 'Anonymous', 'rating' => $review->rating, 'comment' => $review->comment])
+                ->map(fn ($review) => ['author' => $review->user?->name ?? 'Anonymous', 'rating' => $review->rating, 'comment' => $review->comment, 'date' => $review->created_at?->format('M Y')])
                 ->all(),
         ];
     }
@@ -146,9 +169,47 @@ class FacilityDetail extends Component
             'date' => $this->selectedDate,
             'court' => $this->selectedCourtId,
             'slot' => $this->selectedSlot['start'] ?? null,
+            'until' => $this->selectedSlot['end'] ?? null,
+            'extras' => implode(',', $this->selectedRentals) ?: null,
         ]));
 
         return redirect()->route('login', ['book' => 1]);
+    }
+
+    /** Adds the next hour to the selection when it is free and the booking stays within Booking::MAX_HOURS. */
+    public function extendBooking(): bool
+    {
+        if (!$this->canExtend()) {
+            return false;
+        }
+        $this->selectedSlot['end'] = $this->shiftEnd(1);
+
+        return true;
+    }
+
+    public function shortenBooking(): void
+    {
+        $slot = $this->parsedSelectedSlot();
+        if ($slot && $slot[0]->diffInMinutes($slot[1]) > 60) {
+            $this->selectedSlot['end'] = $this->shiftEnd(-1);
+        }
+    }
+
+    private function canExtend(): bool
+    {
+        $slot = $this->parsedSelectedSlot();
+        $end = $this->selectedSlot['end'] ?? null;
+
+        return $slot && $slot[0]->diffInMinutes($slot[1]) < Booking::MAX_HOURS * 60
+            && collect($this->availableSlots[$this->selectedCourtId]['slots'] ?? [])->contains(fn ($s) => $s['start'] === $end && $s['available']);
+    }
+
+    private function shiftEnd(int $hours): string
+    {
+        $slot = $this->parsedSelectedSlot();
+        $end = $slot[1]->copy()->addHours($hours);
+
+        return $end->isSameDay($slot[0]) ? $end->format('H:i') : '24:00';
     }
 
     public function toggleRental($rentalId)
@@ -210,6 +271,9 @@ class FacilityDetail extends Component
             $breakdown = Booking::priceBreakdown($court, $slot[0], $slot[1]);
             $breakdown['rentals'] = $rentals->whereIn('id', $this->selectedRentals)->sum('price');
             $breakdown['total'] += $breakdown['rentals'];
+            $breakdown['hours'] = (int) ($slot[0]->diffInMinutes($slot[1]) / 60);
+            $breakdown['deadline'] = Booking::cancellationDeadline($slot[0]);
+            $breakdown['canExtend'] = $this->canExtend();
         }
 
         return view('livewire.facility-detail', [

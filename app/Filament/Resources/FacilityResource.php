@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Concerns\ScopesToManagedFacilities;
 use App\Filament\Resources\FacilityResource\Pages;
+use App\Filament\Resources\FacilityResource\RelationManagers\ClosuresRelationManager;
 use App\Filament\Resources\FacilityResource\RelationManagers\ManagersRelationManager;
 use App\Models\Booking;
 use App\Models\Facility;
@@ -138,6 +139,7 @@ class FacilityResource extends Resource
     public static function getRelations(): array
     {
         return [
+            ClosuresRelationManager::class,
             ManagersRelationManager::class,
         ];
     }

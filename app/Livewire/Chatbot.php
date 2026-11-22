@@ -47,7 +47,10 @@ class Chatbot extends Component
         // Add welcome message
         $this->messages[] = [
             'sender' => 'bot',
-            'text' => "👋 Hi! I'm **Sporty**, your sports facility assistant. Ask me anything about court availability, rentals, pricing, or locations!\n\nI can check real-time availability and prepare bookings for you directly in our chat!",
+            // Without a model the assistant only answers simple questions, so it mustn't promise live availability.
+            'text' => config('services.gemini.key')
+                ? "👋 Hi! I'm **Sporty**, your sports facility assistant. Ask me anything about court availability, rentals, pricing, or locations!\n\nI can check real-time availability and prepare bookings for you directly in our chat!"
+                : "👋 Hi! I'm **Sporty**. I can tell you which venues have Padel, Tennis, Football or Swimming, and explain prices and cancellation rules.\n\nTo see free times and book, use the search above.",
             'timestamp' => now()->format('H:i'),
         ];
     }
@@ -83,9 +86,17 @@ class Chatbot extends Component
         }
 
         if (!auth()->check()) {
-            $this->pendingBooking = null;
-            $this->addBotMessage("🔒 **Sign In Required:** Please [Sign In](/login) or [Register](/register) to complete your booking reservation.");
-            return;
+            // Hand over to the normal booking flow: after signing in the guest lands on the facility page with this slot open.
+            $pending = $this->pendingBooking;
+            session()->put('url.intended', route('facility', [
+                'id' => $pending['facility_id'],
+                'date' => $pending['date'],
+                'court' => $pending['court_id'],
+                'slot' => $pending['start_time'],
+                'until' => $pending['end_time'],
+            ]));
+
+            return $this->redirect(route('login', ['book' => 1]));
         }
 
         $pending = $this->pendingBooking;
@@ -211,7 +222,7 @@ class Chatbot extends Component
                 'functionDeclarations' => [
                     [
                         'name' => 'checkAvailability',
-                        'description' => 'Lists free one-hour slots per court on a date, optionally filtered by sport, city, facility and start time. Returns every matching court with all of its free start times.',
+                        'description' => 'Lists free one-hour slots per court on a date, optionally filtered by sport, city, facility and start time. Returns every matching court with all of its free start times and each price with its breakdown, plus courts that are closed that day and why.',
                         'parameters' => [
                             'type' => 'OBJECT',
                             'properties' => [
@@ -255,11 +266,11 @@ class Chatbot extends Component
                                 ],
                                 'start_time' => [
                                     'type' => 'STRING',
-                                    'description' => 'The start time of the 1-hour slot in HH:00 format (e.g. "18:00").'
+                                    'description' => 'The start time in HH:00 format (e.g. "18:00").'
                                 ],
                                 'end_time' => [
                                     'type' => 'STRING',
-                                    'description' => 'The end time of the slot in HH:00 format (e.g. "19:00").'
+                                    'description' => 'The end time in HH:00 format, 1 to ' . Booking::MAX_HOURS . ' hours after the start (e.g. "19:00"). Every hour must be free.'
                                 ]
                             ],
                             'required' => ['court_id', 'date', 'start_time', 'end_time']
@@ -351,12 +362,12 @@ class Chatbot extends Component
             $filter = fn (string $key) => is_string($args[$key] ?? null) && $args[$key] !== '' ? $args[$key] : null;
 
             try {
-                $courts = $this->checkAvailabilityInternal((string) $date, $filter('court_type'), $filter('city'), $filter('facility_name'), $filter('start_time'));
+                [$courts, $closed] = $this->checkAvailabilityInternal((string) $date, $filter('court_type'), $filter('city'), $filter('facility_name'), $filter('start_time'));
                 if (empty($courts)) {
-                    return "No slots are available on {$date} for the specified criteria.";
+                    return json_encode(['message' => "No slots are available on {$date} for the specified criteria.", 'closed_courts' => $closed]);
                 }
                 // ponytail: capped so a wide search can't blow up the prompt; ask for a city or facility if it's hit.
-                $result = ['courts' => array_slice($courts, 0, 40)];
+                $result = ['courts' => array_slice($courts, 0, 40), 'closed_courts' => $closed];
                 if (count($courts) > 40) {
                     $result['note'] = 'Only the first 40 of ' . count($courts) . ' courts are listed. Ask the user to narrow down by city, facility or sport.';
                 }
@@ -386,12 +397,15 @@ class Chatbot extends Component
         return "Unknown function: {$name}";
     }
 
-    /** Courts with at least one free slot, each with all of its free start times and prices. */
+    /**
+     * [courts with at least one free slot, each with its free start times and price breakdowns; courts closed all day and why].
+     * Availability comes from Court::slotsOn, the same rules as the facility page and booking.
+     */
     private function checkAvailabilityInternal(string $date, ?string $courtType, ?string $city, ?string $facilityName = null, ?string $startTime = null): array
     {
         $day = Booking::parseSlot($date, '00:00', '00:00');
         if (!$day) {
-            return [];
+            return [[], []];
         }
 
         $query = Facility::with(['courts']);
@@ -409,11 +423,29 @@ class Chatbot extends Component
 
         $slotsByCourt = Court::slotsOn($courts, $day[0]);
 
+        $mkd = fn (int $cents) => number_format($cents / 100, 0);
         $result = [];
+        $closed = [];
         foreach ($courts as $court) {
-            $free = collect($slotsByCourt[$court->id])
+            $slots = collect($slotsByCourt[$court->id]);
+            $reasons = $slots->pluck('closed')->unique();
+            if ($slots->isNotEmpty() && $reasons->count() === 1 && $reasons->first() !== null) {
+                $closed[] = ['court_name' => $court->name, 'facility_name' => $court->facility->name, 'reason' => $reasons->first()];
+                continue;
+            }
+            // The breakdown is spelled out so the assistant explains prices instead of guessing which surcharges apply.
+            $free = $slots
                 ->filter(fn ($slot) => $slot['available'] && (!$startTime || $slot['start'] === $startTime))
-                ->map(fn ($slot) => "{$slot['start']}-{$slot['end']} (" . number_format($slot['price'] / 100, 0) . " MKD)")
+                ->map(function ($slot) use ($court, $day, $mkd) {
+                    $lines = Booking::priceBreakdown($court, $day[0]->copy()->setTimeFromTimeString($slot['start']), $day[0]->copy()->setTimeFromTimeString($slot['start'])->addHour());
+                    $parts = array_filter([
+                        $lines['peak'] ? '+' . $mkd($lines['peak']) . ' peak' : null,
+                        $lines['weekend'] ? '+' . $mkd($lines['weekend']) . ' weekend' : null,
+                    ]);
+
+                    return "{$slot['start']}-{$slot['end']}: " . $mkd($lines['total']) . ' MKD'
+                        . ($parts ? ' (' . $mkd($lines['base']) . ' base ' . implode(' ', $parts) . ')' : '');
+                })
                 ->values();
 
             if ($free->isNotEmpty()) {
@@ -428,7 +460,7 @@ class Chatbot extends Component
             }
         }
 
-        return $result;
+        return [$result, $closed];
     }
 
     private function prepareBookingInternal(string $courtId, string $date, string $startTime, string $endTime): string
@@ -553,8 +585,10 @@ class Chatbot extends Component
                "2. NEVER make up court UUIDs. First call `checkAvailability` to get the list of available courts, their IDs, and times.\n" .
                "3. To prepare a booking, call `prepareBooking(court_id, date, start_time, end_time)`. This will show a physical confirmation card to the user so they can finalize the booking.\n" .
                "4. Explain to the user that they must click the 'Confirm Booking' button that just appeared in the chat window to finalize it.\n" .
-               "5. " . $this->surchargeRules() . " Bookings are one-hour slots.\n" .
-               "6. Cancellation: allowed only if start time is > 24 hours in the future.\n\n" .
+               "5. " . $this->surchargeRules() . " Bookings are 1 to " . Booking::MAX_HOURS . " consecutive whole hours, at most " . Booking::horizonDays() . " days ahead. When explaining a price, use the breakdown checkAvailability returns.\n" .
+               "6. Cancellation: free online until " . Booking::CANCELLATION_HOURS . " hours before the start; after that it can't be cancelled online.\n" .
+               "7. Payment: no payment is taken online. Don't say how or where to pay, and don't state any rule that isn't listed here; say you don't know instead.\n" .
+               "8. If checkAvailability lists a court under closed_courts, it can't be booked that day: say so and give the reason.\n\n" .
                "CURRENT DATABASE FACILITIES DATA:\n" .
                $facilitiesText . "\n" .
                "CURRENT USER CONTEXT:\n" .
@@ -573,9 +607,8 @@ class Chatbot extends Component
     {
         $msg = strtolower($userMessage);
 
-        // Also used as a fallback when Gemini is configured but unreachable; don't tell those users to set a key.
-        $hasKey = (bool) config('services.gemini.key');
-        $setupNote = $hasKey ? '' : "\n\n*Note: Set `GEMINI_API_KEY` in your `.env` to enable full smart AI chat!*";
+        // Used without a key and as a fallback when Gemini is unreachable. Customers get no setup instructions either way.
+        $searchNote = "\n\nTo see free times and book, use the search above.";
 
         $sports = [
             'Padel' => ['keywords' => ['padel'], 'title' => '🏸 **Padel Courts', 'noun' => 'Padel courts'],
@@ -600,35 +633,30 @@ class Chatbot extends Component
             foreach ($matching as $f) {
                 $res .= "- **{$f->name}** in {$f->city} ({$f->address})\n";
                 foreach ($f->courts as $c) {
-                    $res .= "  - {$c->name}: " . number_format($c->base_price_per_hour / 100, 0) . " MKD/hour\n";
+                    $res .= "  - {$c->name}: " . number_format($c->base_price_per_hour / 100, 0) . " MKD/hour" . ($c->seasonLabel() ? " (open {$c->seasonLabel()})" : '') . "\n";
                 }
             }
-            return rtrim($res) . $setupNote;
+            return rtrim($res) . $searchNote;
         }
 
         if (str_contains($msg, 'cancel') || str_contains($msg, 'rules') || str_contains($msg, 'cancellation')) {
             return "📅 **Booking & Cancellation Rules:**\n\n" .
-                   "- **Slots:** 1-hour increments during facility opening hours.\n" .
-                   "- **Cancellations:** Only allowed if the booking start time is **more than 24 hours in the future**.\n" .
-                   "- " . $this->surchargeRules() .
-                   $setupNote;
+                   "- **Slots:** 1 to " . Booking::MAX_HOURS . " consecutive hours during facility opening hours, up to " . Booking::horizonDays() . " days ahead.\n" .
+                   "- **Cancellations:** Free online until **" . Booking::CANCELLATION_HOURS . " hours before the start**.\n" .
+                   "- **Payment:** No payment is taken online.\n" .
+                   "- " . $this->surchargeRules();
         }
 
         if (preg_match('/\b(hello|hi|hey)\b/', $msg)) {
-            return "👋 **Hello! I am Sporty, your AI assistant.**\n\n" .
-                   "I can help you find facilities, courts, check prices, rentals, and understand cancellation rules.\n\n" .
-                   ($hasKey ? '' : "To enable the full AI experience with real-time conversations, please set the `GEMINI_API_KEY` key in your `.env` file.\n\n") .
-                   "Ask me about: **Padel, Tennis, Football, Swimming, or Booking Rules**!";
+            return "👋 **Hello! I am Sporty.**\n\n" .
+                   "Ask me which venues have **Padel, Tennis, Football or Swimming**, or about prices and cancellation rules." . $searchNote;
         }
 
-        if ($hasKey) {
-            return "I couldn't reach my AI service just now. Please try again in a moment.";
+        if (config('services.gemini.key')) {
+            return "I couldn't reach my AI service just now. Please try again in a moment." . $searchNote;
         }
 
-        return "🤖 **Sporty (Demo Mode)**\n\n" .
-               "I received your message: *\"" . e($userMessage) . "\"*\n\n" .
-               "To get a real AI response using LLMs, please add your `GEMINI_API_KEY` to the `.env` file in the project root.\n\n" .
-               "You can test me by typing keywords like: **Padel**, **Tennis**, **Football**, **Swimming**, or **Cancel**!";
+        return "I can only answer simple questions right now: ask about **Padel**, **Tennis**, **Football**, **Swimming**, or **cancellation rules**." . $searchNote;
     }
 
     public static function parseMarkdown(string $text): string

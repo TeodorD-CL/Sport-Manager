@@ -47,8 +47,10 @@ class BookingResource extends Resource
                     ->relationship(
                         'court',
                         'name',
-                        modifyQueryUsing: fn (Builder $query) => static::scopeToManagedFacilities($query)
+                        modifyQueryUsing: fn (Builder $query) => static::scopeToManagedFacilities($query)->with('facility')
                     )
+                    // Court names repeat across venues ("Tennis Court 1"), so show the facility too.
+                    ->getOptionLabelFromRecordUsing(fn (Court $court) => "{$court->facility->name} · {$court->name}")
                     ->required(),
                 Forms\Components\DateTimePicker::make('start_time')
                     ->seconds(false)
@@ -165,6 +167,9 @@ class BookingResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('court.facility.name')
+                    ->label('Facility')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('court.name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('start_time')
@@ -184,6 +189,12 @@ class BookingResource extends Resource
                 Tables\Columns\TextColumn::make('total_price')
                     ->formatStateUsing(fn ($state) => number_format($state / 100, 0) . ' MKD')
                     ->sortable(),
+                // The 8 characters customers see under their QR code; staff can search for them.
+                Tables\Columns\TextColumn::make('qr_code')
+                    ->label('Reference')
+                    ->formatStateUsing(fn (?string $state) => Str::upper(Str::limit((string) $state, 8, '')))
+                    ->searchable(query: fn (Builder $query, string $search) => $query->where('qr_code', 'like', Str::lower(trim($search)) . '%'))
+                    ->toggleable(),
             ])
             ->defaultSort('start_time', 'desc')
             ->filters([
@@ -195,10 +206,13 @@ class BookingResource extends Resource
                         'checked_in' => 'Checked In',
                     ]),
                 static::facilityFilter('court'),
+                Tables\Filters\Filter::make('today')
+                    ->query(fn (Builder $query) => $query->whereBetween('start_time', [today(), today()->endOfDay()])),
                 Tables\Filters\Filter::make('upcoming')
                     ->query(fn (Builder $query) => $query->where('start_time', '>=', now())),
             ])
             ->actions([
+                static::checkInAction(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -206,6 +220,16 @@ class BookingResource extends Resource
                     static::deleteBulkAction(),
                 ]),
             ]);
+    }
+
+    /** Marks today's confirmed booking as checked in once staff have seen the customer's QR code or reference. */
+    public static function checkInAction(): Tables\Actions\Action
+    {
+        return Tables\Actions\Action::make('checkIn')
+            ->label('Check in')
+            ->icon('heroicon-o-check-circle')
+            ->visible(fn (Booking $record) => $record->status === 'confirmed' && $record->start_time->isToday() && static::canEdit($record))
+            ->action(fn (Booking $record) => $record->update(['status' => 'checked_in']));
     }
 
     public static function getEloquentQuery(): Builder

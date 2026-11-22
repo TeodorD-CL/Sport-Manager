@@ -1,5 +1,5 @@
 <x-layouts.app title="Create an account – Sport Manager">
-    <div class="min-h-[80vh] flex items-center justify-center py-12 px-4 bg-white">
+    <div class="min-h-[80vh] flex items-center justify-center py-12 px-4">
         <div class="w-full max-w-md">
             
             <div class="mb-10">
@@ -7,7 +7,7 @@
                 <p class="text-gray-600 mt-2">Join Sport Manager to start booking courts.</p>
             </div>
 
-            <div class="border border-gray-300 p-8">
+            <div class="border border-gray-300 bg-white p-8">
                 @if($errors->any())
                     <div class="mb-6 border-l-4 border-red-600 bg-red-50 p-4">
                         @foreach($errors->all() as $error)<p class="text-sm font-bold text-red-900">{{ $error }}</p>@endforeach

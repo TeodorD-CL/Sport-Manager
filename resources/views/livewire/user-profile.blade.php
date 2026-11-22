@@ -1,4 +1,4 @@
-<div class="bg-white min-h-screen pb-16">
+<div class="min-h-screen pb-16">
     <div class="max-w-3xl mx-auto px-4 sm:px-6 pt-12 pb-8 border-b border-gray-200">
         <h1 class="text-3xl font-bold text-black tracking-tight">Profile Settings</h1>
         <p class="text-gray-600 mt-2">Manage your account details and password.</p>

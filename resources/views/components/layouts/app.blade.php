@@ -22,6 +22,9 @@
             background-image: none;
         }
         
+        /* Checkboxes follow the monochrome palette instead of the browser's blue. */
+        input[type=checkbox] { accent-color: #111; }
+
         /* Mouse clicks get no outline; keyboard focus keeps a visible one. */
         input:focus:not(:focus-visible), select:focus:not(:focus-visible), textarea:focus:not(:focus-visible), button:focus:not(:focus-visible) {
             outline: none;

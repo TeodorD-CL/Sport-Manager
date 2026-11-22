@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
@@ -83,6 +85,46 @@ class AuthController extends Controller
         if (is_string($request->input('email'))) {
             $request->merge(['email' => Str::lower(trim($request->input('email')))]);
         }
+    }
+
+    public function showForgotPassword()
+    {
+        return view('auth.forgot-password');
+    }
+
+    /** Emails a reset link. The answer is the same whether or not the account exists, so this can't be used to probe emails. */
+    public function sendResetLink(Request $request)
+    {
+        $this->lowercaseEmail($request);
+        $request->validate(['email' => 'required|email']);
+
+        Password::sendResetLink($request->only('email'));
+
+        return back()->with('status', 'If an account uses that email, we have sent it a link to reset the password. The link works for 60 minutes.');
+    }
+
+    public function showResetPassword(Request $request, string $token)
+    {
+        return view('auth.reset-password', ['token' => $token, 'email' => $request->query('email')]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $this->lowercaseEmail($request);
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $status = Password::reset($request->only('email', 'password', 'password_confirmation', 'token'), function (User $user, string $password) {
+            $user->forceFill(['password' => Hash::make($password), 'remember_token' => Str::random(60)])->save();
+            event(new PasswordReset($user));
+        });
+
+        return $status === Password::PASSWORD_RESET
+            ? redirect()->route('login')->with('status', 'Your password has been reset. Sign in with the new one.')
+            : back()->withErrors(['email' => 'This reset link is invalid or has expired. Request a new one.'])->onlyInput('email');
     }
 
     public function logout(Request $request)

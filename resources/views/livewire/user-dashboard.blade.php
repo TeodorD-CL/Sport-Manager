@@ -4,7 +4,7 @@
     <div class="flex justify-between items-end mb-8">
         <div>
             <p class="text-xs font-bold text-gray-600 tracking-[0.1em] uppercase mb-4">
-                Account &bull; {{ Auth::user()->hasAdminPanelAccess() ? 'Admin User' : 'Standard User' }}
+                Account
             </p>
             <h1 class="text-4xl md:text-[52px] leading-none font-bold text-[#111] tracking-tight mb-3">
                 Bookings
@@ -67,24 +67,31 @@
     @else
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             @foreach($bookings as $booking)
-                <div class="bg-white border border-gray-200 p-6 flex flex-col lg:flex-row gap-6">
+                @php
+                    $facility = $booking->court->facility;
+                    $upcoming = $booking->status !== 'cancelled' && $booking->start_time->isFuture();
+                    $played = in_array($booking->status, ['completed', 'checked_in']) && $booking->end_time->isPast();
+                    $canReview = $played && !in_array($facility->id, $reviewed);
+                    $reference = Str::upper(Str::limit($booking->qr_code, 8, ''));
+                @endphp
+                <div class="bg-white border border-gray-200 {{ $upcoming ? 'p-6' : 'p-5' }} flex flex-col lg:flex-row gap-6">
                     <div class="flex-1 flex flex-col">
-                        <div class="flex justify-between items-start mb-6">
+                        <div class="flex justify-between items-start gap-4 {{ $upcoming ? 'mb-6' : 'mb-4' }}">
                             <div>
                                 <h3 class="font-bold text-[18px] text-black tracking-tight mb-1">{{ $booking->court->name }}</h3>
-                                <a href="/facility/{{ $booking->court->facility->id }}" class="text-[13px] text-gray-600 hover:text-black hover:underline transition-colors">
-                                    {{ $booking->court->facility->name }}
+                                <a href="/facility/{{ $facility->id }}" class="text-[13px] text-gray-600 hover:text-black hover:underline transition-colors">
+                                    {{ $facility->name }}
                                 </a>
                             </div>
-                            <div class="px-2 py-1 border border-black text-xs font-bold uppercase tracking-widest text-black">
-                                {{ $booking->status }}
+                            <div class="px-2 py-1 border border-black text-xs font-bold uppercase tracking-widest text-black shrink-0">
+                                {{ str_replace('_', ' ', $booking->status) }}
                             </div>
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-4 mb-8">
+                        <div class="grid grid-cols-2 gap-4 {{ $upcoming ? 'mb-6' : 'mb-4' }}">
                             <div>
                                 <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">Date</p>
-                                <p class="text-[14px] font-bold text-black">{{ $booking->start_time->format('d M Y') }}</p>
+                                <p class="text-[14px] font-bold text-black">{{ $booking->start_time->format('D, d M Y') }}</p>
                             </div>
                             <div>
                                 <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">Time</p>
@@ -92,16 +99,33 @@
                             </div>
                         </div>
 
-                        <div class="w-full h-px bg-gray-200 mb-6 mt-auto"></div>
+                        @if($upcoming)
+                            <div class="space-y-1.5 text-[13px] text-gray-700 mb-6">
+                                <p>
+                                    {{ $facility->address }}, {{ $facility->city }}
+                                    &middot; <a href="https://www.google.com/maps/search/?api=1&query={{ urlencode($facility->name . ', ' . $facility->address . ', ' . $facility->city) }}" target="_blank" rel="noopener" class="font-bold text-black underline hover:no-underline">Directions</a>
+                                </p>
+                                @if($booking->rentals->isNotEmpty())
+                                    <p>Extras: {{ $booking->rentals->pluck('name')->join(', ') }}</p>
+                                @endif
+                                @if($booking->isCancellable())
+                                    <p>Free cancellation until <span class="font-bold text-black">{{ \App\Models\Booking::cancellationDeadline($booking->start_time)->format('D, j M, H:i') }}</span></p>
+                                @elseif($booking->status === 'confirmed')
+                                    <p>Starts within {{ \App\Models\Booking::CANCELLATION_HOURS }} hours, so it can't be cancelled online.</p>
+                                @endif
+                            </div>
+                        @endif
+
+                        <div class="w-full h-px bg-gray-200 {{ $upcoming ? 'mb-6' : 'mb-4' }} mt-auto"></div>
                         
-                        <div class="flex justify-between items-end">
+                        <div class="flex justify-between items-end gap-4">
                             <div>
                                 <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">Total</p>
-                                <p class="text-[16px] font-bold text-black">{{ explode(' ', $booking->formatted_total_price)[0] }} <span class="text-xs tracking-widest uppercase">MKD</span></p>
+                                <p class="text-[16px] font-bold text-black whitespace-nowrap">{{ explode(' ', $booking->formatted_total_price)[0] }} <span class="text-xs tracking-widest uppercase">MKD</span></p>
                             </div>
 
-                            <div class="flex gap-3">
-                                @if($booking->status === 'confirmed' && $booking->start_time->isFuture())
+                            <div class="flex flex-wrap justify-end gap-3">
+                                @if($booking->isCancellable())
                                     <button wire:click="cancelBooking(@js($booking->id))"
                                             wire:loading.attr="disabled"
                                             wire:confirm="Are you sure you want to cancel this reservation?"
@@ -109,20 +133,28 @@
                                         Cancel
                                     </button>
                                 @endif
-                                <a href="/facility/{{ $booking->court->facility->id }}" class="bg-[#111] text-white px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-black transition-colors flex items-center">
-                                    Book again
-                                </a>
+                                @if($canReview)
+                                    <a href="/facility/{{ $facility->id }}#reviews" class="text-xs font-bold text-black uppercase tracking-widest hover:underline py-2">
+                                        Write a review
+                                    </a>
+                                @endif
+                                @unless($upcoming)
+                                    <a href="/facility/{{ $facility->id }}" class="bg-[#111] text-white px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-black transition-colors flex items-center">
+                                        Book again
+                                    </a>
+                                @endunless
                             </div>
                         </div>
                     </div>
 
-                    {{-- QR code: below the details on phones (shown at the venue), a side column from md up. --}}
-                    @if($booking->status !== 'cancelled' && $booking->qr_code)
+                    {{-- QR code to show at the venue: only for bookings still ahead. Below the details on phones, a side column from lg up. --}}
+                    @if($upcoming && $booking->qr_code)
                     <div class="flex flex-col items-center justify-center shrink-0 border-t border-gray-200 pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
                         <div class="p-2 border border-black bg-white">
                             {!! \SimpleSoftwareIO\QrCode\Facades\QrCode::size(100)->color(17, 17, 17)->generate($booking->qr_code) !!}
                         </div>
-                        <span class="text-xs font-mono font-bold text-gray-600 uppercase mt-3 tracking-[0.2em]">{{ Str::limit($booking->qr_code, 8, '') }}</span>
+                        <span class="text-xs font-bold text-gray-600 uppercase mt-3 tracking-widest">Reference</span>
+                        <span class="text-xs font-mono font-bold text-black uppercase tracking-[0.2em]">{{ $reference }}</span>
                     </div>
                     @endif
                 </div>

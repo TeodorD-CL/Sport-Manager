@@ -24,6 +24,10 @@ class Booking extends Model
     public const PEAK_SURCHARGE = 0.2;
     public const WEEKEND_SURCHARGE = 0.1;
 
+    // Users book 1 to MAX_HOURS consecutive whole hours, and can cancel online until CANCELLATION_HOURS before the start.
+    public const MAX_HOURS = 3;
+    public const CANCELLATION_HOURS = 24;
+
     public $incrementing = false;
     protected $keyType = 'string';
 
@@ -98,7 +102,10 @@ class Booking extends Model
         return $times;
     }
 
-    /** Why this court can't take a booking with this shape, or null if it can: whole hours inside opening hours. */
+    /**
+     * Why this court can't take a booking with this shape, or null if it can: whole hours inside opening hours,
+     * in the court's season and outside any closure. Admin bookings use this too; overlaps are checked separately.
+     */
     public static function slotError(Court $court, Carbon $start, Carbon $end): ?string
     {
         $opening = (int) $court->facility->opening_hour;
@@ -112,20 +119,55 @@ class Booking extends Model
             return sprintf('Bookings are whole hours between %02d:00 and %02d:00.', $opening, $closing);
         }
 
+        if (!$court->isInSeason($start)) {
+            return "{$court->name} is closed for the season (open {$court->seasonLabel()}).";
+        }
+
+        if ($closure = Closure::affecting($court, $start, $end)->orderBy('starts_at')->first()) {
+            return "{$court->name} is closed then" . ($closure->reason ? " ({$closure->reason})" : '') . '.';
+        }
+
         return null;
     }
 
-    /** Why a user can't book this slot, or null if they can: one future hour inside opening hours. Overlaps are checked separately. */
+    /** Why a user can't book this slot, or null if they can: 1 to MAX_HOURS future hours inside the booking horizon. Overlaps are checked separately. */
     public static function bookingError(Court $court, Carbon $start, Carbon $end): ?string
     {
         if ($error = static::slotError($court, $start, $end)) {
             return $error;
         }
-        if (!$end->equalTo($start->copy()->addHour())) {
-            return 'Bookings are one-hour slots.';
+        $hours = $start->diffInMinutes($end) / 60;
+        if ($hours < 1 || $hours > self::MAX_HOURS) {
+            return 'Bookings are 1 to ' . self::MAX_HOURS . ' consecutive hours.';
+        }
+        if ($start->gt(static::horizonEnd())) {
+            return 'Bookings open ' . static::horizonDays() . ' days ahead.';
         }
 
         return $start->isPast() ? 'Cannot book a time slot in the past.' : null;
+    }
+
+    public static function horizonDays(): int
+    {
+        return (int) config('app.booking_horizon_days');
+    }
+
+    /** The last moment a user can book: the end of the day horizonDays() from today. */
+    public static function horizonEnd(): Carbon
+    {
+        return Carbon::today()->addDays(static::horizonDays())->endOfDay();
+    }
+
+    /** The online cancellation deadline for a booking starting at $start. */
+    public static function cancellationDeadline(Carbon $start): Carbon
+    {
+        return $start->copy()->subHours(self::CANCELLATION_HOURS);
+    }
+
+    /** True while the customer can still cancel online. */
+    public function isCancellable(): bool
+    {
+        return $this->status === 'confirmed' && now()->lt(static::cancellationDeadline($this->start_time));
     }
 
     /** True when PostgreSQL's no-overlap exclusion constraint rejected a write: another booking got the slot first. */

@@ -4,6 +4,8 @@ namespace App\Livewire;
 
 use App\Enums\CourtType;
 use App\Models\Amenity;
+use App\Models\Booking;
+use App\Models\Court;
 use App\Models\Facility;
 use Carbon\Carbon;
 use Livewire\Attributes\Computed;
@@ -26,6 +28,9 @@ class SearchFacilities extends Component
     #[Url(as: 'date')]
     public string $date = '';
 
+    #[Url(as: 'time')]
+    public string $time = '';
+
     #[Url(as: 'amenities')]
     public array $amenityFilters = [];
 
@@ -35,6 +40,7 @@ class SearchFacilities extends Component
     public function updatingCity() { $this->resetPage(); }
     public function updatingType() { $this->resetPage(); }
     public function updatingDate() { $this->resetPage(); }
+    public function updatingTime() { $this->resetPage(); }
     public function updatingAmenityFilters() { $this->resetPage(); }
     public function updatingSort() { $this->resetPage(); }
 
@@ -48,6 +54,7 @@ class SearchFacilities extends Component
         $this->city = '';
         $this->type = '';
         $this->date = '';
+        $this->time = '';
         $this->amenityFilters = [];
         $this->sort = '';
         $this->resetPage();
@@ -59,8 +66,71 @@ class SearchFacilities extends Component
         return Facility::distinct()->pluck('city')->filter()->sort()->values();
     }
 
+    /** The searched day: the date filter, or today when only a time is chosen. Null for no date, a malformed one, or one outside the bookable range. */
+    private function searchDay(): ?Carbon
+    {
+        $date = $this->date ?: ($this->searchTime() ? Carbon::today()->format('Y-m-d') : '');
+        $parsed = \DateTime::createFromFormat('!Y-m-d', $date);
+        if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+            return null;
+        }
+        $day = Carbon::instance($parsed);
+
+        return $day->lt(Carbon::today()) || $day->gt(Booking::horizonEnd()) ? null : $day;
+    }
+
+    /** The time filter as "H:00", or null. */
+    private function searchTime(): ?string
+    {
+        return preg_match('/^([01]\d|2[0-3]):00$/', $this->time) ? $this->time : null;
+    }
+
+    /**
+     * Free times per facility on the searched day, from the same slots the facility page shows (Court::slotsOn),
+     * so search and booking can't disagree. With a time: 'exact' lists courts free at that hour with their prices,
+     * 'near' the nearest other free start times within two hours. Facilities with nothing to offer are left out.
+     */
+    private function availability(Carbon $day, ?string $time): array
+    {
+        $courts = Court::with('facility')
+            ->when(CourtType::tryFrom($this->type), fn ($q) => $q->where('type', $this->type))
+            ->when($this->city, fn ($q) => $q->whereHas('facility', fn ($f) => $f->where('city', $this->city)))
+            ->get();
+
+        $byFacility = [];
+        foreach (Court::slotsOn($courts, $day) as $courtId => $slots) {
+            $court = $courts->firstWhere('id', $courtId);
+            foreach ($slots as $slot) {
+                if ($slot['available']) {
+                    $byFacility[$court->facility_id][] = $slot;
+                }
+            }
+        }
+
+        $result = [];
+        foreach ($byFacility as $facilityId => $free) {
+            $free = collect($free);
+            if (!$time) {
+                $result[$facilityId] = ['exact' => null, 'near' => []];
+                continue;
+            }
+            $exact = $free->where('start', $time);
+            $near = $free->pluck('start')->unique()
+                ->reject(fn ($start) => $start === $time || abs((int) $start - (int) $time) > 2)
+                ->sortBy(fn ($start) => [abs((int) $start - (int) $time), $start])
+                ->take(3)->sort()->values()->all();
+            if ($exact->isNotEmpty() || $near) {
+                $result[$facilityId] = ['exact' => $exact->isNotEmpty() ? $exact->min('price') : null, 'near' => $near];
+            }
+        }
+
+        return $result;
+    }
+
     public function render()
     {
+        $sport = CourtType::tryFrom($this->type)?->value;
+
         // Courts in the order they were added, so each card shows the same (first) court's photo every time.
         $query = Facility::with(['courts' => fn ($courts) => $courts->orderBy('created_at')->orderBy('id'), 'amenities'])
             ->withAvg('reviews', 'rating')
@@ -70,34 +140,20 @@ class SearchFacilities extends Component
             $query->where('city', $this->city);
         }
 
-        if (CourtType::tryFrom($this->type)) {
-            $query->whereHas('courts', function ($q) {
-                $q->where('type', $this->type);
-            });
+        if ($sport) {
+            $query->whereHas('courts', fn ($q) => $q->where('type', $sport));
         }
 
-        if ($this->date) {
-            $parsed = \DateTime::createFromFormat('Y-m-d', $this->date);
-            if ($parsed && $parsed->format('Y-m-d') === $this->date) {
-                $dayStart = Carbon::instance($parsed)->startOfDay();
-                // Today, only hours that haven't started yet can be booked.
-                $firstHour = $dayStart->isToday() ? now()->hour + 1 : 0;
-
-                // A court (of the chosen sport) has room while it has fewer bookings than bookable hours left that day.
-                // ponytail: counts bookings, not booked hours, so multi-hour admin bookings undercount; sum durations if that matters.
-                $query->whereHas('courts', function ($q) use ($dayStart, $firstHour) {
-                    if (CourtType::tryFrom($this->type)) {
-                        $q->where('type', $this->type);
-                    }
-                    $q->whereRaw(
-                        '(select count(*) from bookings where bookings.court_id = courts.id and bookings.status <> ? and bookings.start_time >= ? and bookings.start_time < ?)'
-                        . ' < facilities.closing_hour - (case when facilities.opening_hour > ? then facilities.opening_hour else ? end)',
-                        ['cancelled', $dayStart->copy()->setTime($firstHour, 0), $dayStart->copy()->addDay(), $firstHour, $firstHour]
-                    );
-                });
-
-                if ($dayStart->isPast() && !$dayStart->isToday()) {
-                    $query->whereRaw('1 = 0');
+        $availability = null;
+        if ($this->date || $this->searchTime()) {
+            $day = $this->searchDay();
+            $availability = $day ? $this->availability($day, $this->searchTime()) : [];
+            $query->whereIn('facilities.id', array_keys($availability));
+            if ($this->searchTime()) {
+                // Venues free at the exact time first; the rest only offer nearby times.
+                $exactIds = array_keys(array_filter($availability, fn ($a) => $a['exact'] !== null));
+                if ($exactIds) {
+                    $query->orderByRaw('case when facilities.id in (' . implode(',', array_fill(0, count($exactIds), '?')) . ') then 0 else 1 end', $exactIds);
                 }
             }
         }
@@ -111,12 +167,14 @@ class SearchFacilities extends Component
             }
         }
 
-        // NULLS LAST: facilities without reviews or courts go to the end in both PostgreSQL and SQLite.
+        // Price sorts look only at courts of the chosen sport. NULLS LAST: facilities without reviews or courts go to the end.
+        $courtPrice = fn (string $aggregate) => "(select {$aggregate}(base_price_per_hour) from courts where courts.facility_id = facilities.id"
+            . ($sport ? ' and courts.type = ?' : '') . ')';
         match ($this->sort) {
             'rating'     => $query->orderByRaw('(select avg(rating) from reviews where reviews.facility_id = facilities.id) desc nulls last'),
             'reviews'    => $query->orderByDesc('reviews_count'),
-            'price_asc'  => $query->orderByRaw('(select min(base_price_per_hour) from courts where courts.facility_id = facilities.id) asc nulls last'),
-            'price_desc' => $query->orderByRaw('(select max(base_price_per_hour) from courts where courts.facility_id = facilities.id) desc nulls last'),
+            'price_asc'  => $query->orderByRaw($courtPrice('min') . ' asc nulls last', $sport ? [$sport] : []),
+            'price_desc' => $query->orderByRaw($courtPrice('max') . ' desc nulls last', $sport ? [$sport] : []),
             default => null,
         };
         // Ties are common, so finish with a unique order or pagination can repeat or skip facilities.
@@ -125,9 +183,13 @@ class SearchFacilities extends Component
         $facilities = $query->paginate(12);
 
         return view('livewire.search-facilities', [
-            'facilities' => $facilities,
-            'cities'     => $this->cities,
-            'amenities'  => Amenity::orderBy('name')->get(),
+            'facilities'   => $facilities,
+            'cities'       => $this->cities,
+            'amenities'    => Amenity::orderBy('name')->get(),
+            'selectedSport' => $sport,
+            'availability' => $availability,
+            'searchTime'   => $this->searchTime(),
+            'searchDay'    => $this->searchDay(),
         ]);
     }
 }
