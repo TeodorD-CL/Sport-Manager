@@ -78,7 +78,7 @@ class LeaveReview extends Component
         $this->rating = 5;
         $this->comment = '';
 
-        session()->flash('message', 'Thank you! Your review has been submitted.');
+        session()->flash('message', 'Thanks, your review is posted.');
         $this->dispatch('reviewSubmitted');
     }
 

@@ -245,7 +245,7 @@ class FacilityDetail extends Component
 
         $this->showBookingModal = false;
 
-        return redirect()->route('dashboard')->with('success', 'Booking confirmed successfully!');
+        return redirect()->route('dashboard')->with('success', 'Booking confirmed.');
     }
 
     /** The selected slot as [start, end], or null if the client sent something malformed. */

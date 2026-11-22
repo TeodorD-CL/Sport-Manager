@@ -49,8 +49,8 @@ class Chatbot extends Component
             'sender' => 'bot',
             // Without a model the assistant only answers simple questions, so it mustn't promise live availability.
             'text' => config('services.gemini.key')
-                ? "👋 Hi! I'm **Sporty**, your sports facility assistant. Ask me anything about court availability, rentals, pricing, or locations!\n\nI can check real-time availability and prepare bookings for you directly in our chat!"
-                : "👋 Hi! I'm **Sporty**. I can tell you which venues have Padel, Tennis, Football or Swimming, and explain prices and cancellation rules.\n\nTo see free times and book, use the search above.",
+                ? "I'm **Sporty**. Ask me about free times, prices, equipment or locations.\n\nI can also check availability and prepare a booking here in the chat."
+                : "I'm **Sporty**. I can tell you which venues have Padel, Tennis, Football or Swimming, and explain prices and cancellation rules.\n\nTo see free times and book, use the search above.",
             'timestamp' => now()->format('H:i'),
         ];
     }
@@ -66,7 +66,7 @@ class Chatbot extends Component
         $this->messages = [];
         $this->messages[] = [
             'sender' => 'bot',
-            'text' => "👋 Chat cleared! I'm ready for new questions. Ask me anything about our facilities and courts!",
+            'text' => "Chat cleared. Ask about courts, prices or free times.",
             'timestamp' => now()->format('H:i'),
         ];
         $this->pendingBooking = null;
@@ -76,7 +76,7 @@ class Chatbot extends Component
     public function cancelPendingBooking()
     {
         $this->pendingBooking = null;
-        $this->addBotMessage("❌ Booking proposal cancelled. Let me know if you want to search for other options!");
+        $this->addBotMessage("Booking not made. Ask me if you want to look for another time.");
     }
 
     public function confirmPendingBooking()
@@ -113,15 +113,15 @@ class Chatbot extends Component
             // Checked again here: the slot may have passed or been taken since it was proposed.
             Booking::book($court, $slot[0], $slot[1], auth()->user());
         } catch (BookingException $e) {
-            $this->addBotMessage("❌ **Booking failed:** {$e->getMessage()} Please check availability again.");
+            $this->addBotMessage("**Booking failed:** {$e->getMessage()} Please check availability again.");
             return;
         } catch (\Exception $e) {
             Log::error("Chatbot booking error: " . $e->getMessage());
-            $this->addBotMessage("❌ **System Error:** Something went wrong during booking. Please try again.");
+            $this->addBotMessage("**Something went wrong** during booking. Please try again.");
             return;
         }
 
-        $this->addBotMessage("🎉 **Booking Confirmed!**\n\nYour slot at **{$pending['court_name']}** (at *{$pending['facility_name']}*) is reserved for **{$pending['date']}** from **{$pending['start_time']} to {$pending['end_time']}**.\n\nYou can view the details, QR code, or cancel your booking on your [Bookings Dashboard](/dashboard).");
+        $this->addBotMessage("**Booking confirmed.**\n\nYour slot at **{$pending['court_name']}** (at *{$pending['facility_name']}*) is reserved for **{$pending['date']}** from **{$pending['start_time']} to {$pending['end_time']}**.\n\nYou can view the details, QR code, or cancel your booking on your [Bookings Dashboard](/dashboard).");
     }
 
     public function sendMessage()
@@ -164,7 +164,7 @@ class Chatbot extends Component
         // This is the expensive call (up to 3 LLM requests), and the browser can trigger it directly.
         $limiterKey = 'chatbot:' . (auth()->id() ?? request()->ip());
         if (RateLimiter::tooManyAttempts($limiterKey, self::REPLIES_PER_MINUTE)) {
-            $botResponse = "⏳ You're sending messages too quickly. Please wait a minute and try again.";
+            $botResponse = "You're sending messages too quickly. Please wait a minute and try again.";
         } else {
             RateLimiter::hit($limiterKey);
             $botResponse = $this->getBotResponse(mb_substr($userMsg, 0, self::MAX_MESSAGE_LENGTH));
@@ -290,7 +290,7 @@ class Chatbot extends Component
             while ($loopCount < $maxLoops) {
                 $left = now()->diffInSeconds($deadline);
                 if ($left < 2) {
-                    return "⏳ That took too long. Here is what I can find from my offline system database:\n\n" . $this->getMockResponse($userMsg);
+                    return "That took too long. Here is a basic answer instead:\n\n" . $this->getMockResponse($userMsg);
                 }
                 $timeout = min(20, $left);
 
@@ -319,7 +319,7 @@ class Chatbot extends Component
 
                 if (!$response->successful()) {
                     Log::error("Gemini API Error: " . $response->body());
-                    return "⚠️ I had trouble connecting to my AI processor (Status: " . $response->status() . "). Here is a quick query fallback:\n\n" . $this->getMockResponse($userMsg);
+                    return "The assistant is unavailable right now (error " . $response->status() . "). Here is a basic answer instead:\n\n" . $this->getMockResponse($userMsg);
                 }
 
                 // A reply can mix text and function calls in any order, so look at every part.
@@ -344,14 +344,14 @@ class Chatbot extends Component
 
                 $text = collect($parts)->reject(fn ($part) => !empty($part['thought']))->pluck('text')->filter()->implode("\n\n");
 
-                return $text !== '' ? $text : 'Done!';
+                return $text !== '' ? $text : 'Done.';
             }
 
-            return "I completed checking that information. Let me know what you'd like to do next!";
+            return "I checked that. What would you like to do next?";
 
         } catch (\Exception $e) {
             Log::error("Gemini Request Exception: " . $e->getMessage());
-            return "⚠️ Connection lost. Here is what I can find from my offline system database:\n\n" . $this->getMockResponse($userMsg);
+            return "Connection lost. Here is a basic answer instead:\n\n" . $this->getMockResponse($userMsg);
         }
     }
 
@@ -574,7 +574,7 @@ class Chatbot extends Component
         $dayOfWeek = now()->format('l');
 
         return "You are 'Sporty', the official AI chatbot of Sport Manager (sports court booking platform in Macedonia).\n" .
-               "Your character: Helpful, concise, uses emojis where appropriate, talks like a helpful sport facility manager. Keep answers brief (under 3 paragraphs if possible). Use markdown formatting.\n\n" .
+               "Your character: helpful and concise, talks like a sports facility manager. Write plainly: no emojis, no exclamation marks, no sales language. Keep answers brief (under 3 paragraphs if possible). Use markdown formatting.\n\n" .
                "CURRENT DATETIME INFO (Extremely Important):\n" .
                "- Today's Date: {$todayDate}\n" .
                "- Current Local Time: {$currentTime}\n" .
@@ -611,10 +611,10 @@ class Chatbot extends Component
         $searchNote = "\n\nTo see free times and book, use the search above.";
 
         $sports = [
-            'Padel' => ['keywords' => ['padel'], 'title' => '🏸 **Padel Courts', 'noun' => 'Padel courts'],
-            'Tennis' => ['keywords' => ['tennis'], 'title' => '🎾 **Tennis Courts', 'noun' => 'Tennis courts'],
-            'Football' => ['keywords' => ['football', 'soccer'], 'title' => '⚽ **Football Courts', 'noun' => 'Football courts'],
-            'Swimming' => ['keywords' => ['pool', 'swim'], 'title' => '🏊 **Swimming Pools', 'noun' => 'Swimming pools'],
+            'Padel' => ['keywords' => ['padel'], 'title' => '**Padel courts', 'noun' => 'Padel courts'],
+            'Tennis' => ['keywords' => ['tennis'], 'title' => '**Tennis courts', 'noun' => 'Tennis courts'],
+            'Football' => ['keywords' => ['football', 'soccer'], 'title' => '**Football courts', 'noun' => 'Football courts'],
+            'Swimming' => ['keywords' => ['pool', 'swim'], 'title' => '**Swimming pools', 'noun' => 'Swimming pools'],
         ];
 
         foreach ($sports as $type => $sport) {
@@ -629,7 +629,7 @@ class Chatbot extends Component
                 return "{$sport['title']}:** No facilities with {$sport['noun']} registered.";
             }
 
-            $res = "{$sport['title']} Available:**\n\n";
+            $res = "{$sport['title']}:**\n\n";
             foreach ($matching as $f) {
                 $res .= "- **{$f->name}** in {$f->city} ({$f->address})\n";
                 foreach ($f->courts as $c) {
@@ -640,7 +640,7 @@ class Chatbot extends Component
         }
 
         if (str_contains($msg, 'cancel') || str_contains($msg, 'rules') || str_contains($msg, 'cancellation')) {
-            return "📅 **Booking & Cancellation Rules:**\n\n" .
+            return "**Booking and cancellation rules:**\n\n" .
                    "- **Slots:** 1 to " . Booking::MAX_HOURS . " consecutive hours during facility opening hours, up to " . Booking::horizonDays() . " days ahead.\n" .
                    "- **Cancellations:** Free online until **" . Booking::CANCELLATION_HOURS . " hours before the start**.\n" .
                    "- **Payment:** No payment is taken online.\n" .
@@ -648,7 +648,7 @@ class Chatbot extends Component
         }
 
         if (preg_match('/\b(hello|hi|hey)\b/', $msg)) {
-            return "👋 **Hello! I am Sporty.**\n\n" .
+            return "**Hello, I am Sporty.**\n\n" .
                    "Ask me which venues have **Padel, Tennis, Football or Swimming**, or about prices and cancellation rules." . $searchNote;
         }
 

@@ -56,7 +56,7 @@
             </div>
             <h3 class="text-[20px] font-bold text-black mb-2">No bookings yet</h3>
             <p class="text-[14px] text-gray-600 mb-8 max-w-sm">
-                You don't have any {{ $tab }} reservations. Find a court and lock in your next session.
+                You don't have any {{ $tab }} reservations. Find a court and book a time.
             </p>
             @if($tab === 'upcoming')
                 <a href="/" class="bg-[#111] text-white px-8 py-3 text-[13px] font-bold hover:bg-black transition-colors">

@@ -14,7 +14,7 @@
             </h1>
             <p class="text-[15px] text-gray-600 leading-relaxed max-w-lg">
                 Live availability for venues in {{ $cities->count() > 5 ? $cities->take(5)->join(', ') . ' and more' : $cities->join(', ', ' and ') }}.<br class="hidden md:block">
-                Choose a slot, reserve it, and play &mdash; no calls, no waiting.
+                See free times and prices, and book online.
             </p>
         </div>
 
@@ -243,7 +243,7 @@
                         @elseif($time)
                             <p class="text-xs text-gray-600 mb-6">Nothing is free at or within two hours of {{ $time }}. Try another time or date.</p>
                         @else
-                            <p class="text-xs text-gray-600 mb-6">Adjust your search parameters to find available courts.</p>
+                            <p class="text-xs text-gray-600 mb-6">Try another city, sport or date.</p>
                         @endif
                         <button x-on:click="document.querySelector('[data-search-date]')._flatpickr.clear(); $wire.clearFilters()" class="text-xs font-bold text-black underline hover:no-underline">
                             Clear filters

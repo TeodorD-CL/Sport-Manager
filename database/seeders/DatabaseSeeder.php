@@ -83,7 +83,7 @@ class DatabaseSeeder extends Seeder
         Court::firstOrCreate(['facility_id' => $bitola->id, 'name' => 'Tennis Court A'], ['type' => 'Tennis', 'base_price_per_hour' => 70000, 'image_path' => 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=1600&q=80']);
 
         $ohrid = Facility::firstOrCreate(['name' => 'Ohrid Aquatic Center'], [
-            'description' => 'Swim with a view of the lake. The center has an outdoor 50 m pool open from May to September, a heated training pool all year round and a hard tennis court between the pine trees. Each pool is booked whole, by the hour; goggles and caps can be rented at reception.',
+            'description' => 'By the lake, with an outdoor 50 m pool open from May to September, a heated training pool all year round and a hard tennis court between the pine trees. Each pool is booked whole, by the hour; goggles and caps can be rented at reception.',
             'city' => 'Ohrid',
             'address' => 'ul. Kej Makedonija 8',
             'image_path' => 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1600&q=80',
@@ -96,7 +96,7 @@ class DatabaseSeeder extends Seeder
         Court::firstOrCreate(['facility_id' => $ohrid->id, 'name' => 'Tennis Court'], ['type' => 'Tennis', 'base_price_per_hour' => 75000, 'image_path' => 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=1600&q=80']);
 
         $tetovo = Facility::firstOrCreate(['name' => 'Tetovo Sports Complex'], [
-            'description' => 'A modern complex under the Shar Mountains with a covered padel hall, a floodlit artificial-turf football pitch and an indoor tennis court. The padel court is panoramic glass, and the turf was relaid last season. Wifi and showers included.',
+            'description' => 'A complex under the Shar Mountains with a covered padel hall, a floodlit artificial-turf football pitch and an indoor tennis court. The padel court is panoramic glass, and the turf was relaid last season. Wifi and showers included.',
             'city' => 'Tetovo',
             'address' => 'ul. Ilindenska 22',
             'image_path' => 'https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Padel_Court_in_Nsambya.jpg/1280px-Padel_Court_in_Nsambya.jpg',
@@ -109,7 +109,7 @@ class DatabaseSeeder extends Seeder
         Court::firstOrCreate(['facility_id' => $tetovo->id, 'name' => 'Indoor Court'], ['type' => 'Tennis', 'base_price_per_hour' => 70000, 'image_path' => 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?auto=format&fit=crop&w=1600&q=80']);
 
         $prilep = Facility::firstOrCreate(['name' => 'Prilep Professional Arena'], [
-            'description' => 'Prilep\'s top-tier venue, used by regional clubs for training. A professional hybrid-grass pitch, a championship hard tennis court and an outdoor padel court. Coaching sessions can be arranged with the front desk.',
+            'description' => 'Used by regional clubs for training. A hybrid-grass pitch, a hard tennis court and an outdoor padel court. Coaching sessions can be arranged with the front desk.',
             'city' => 'Prilep',
             'address' => 'ul. Marksova 15',
             'image_path' => 'https://upload.wikimedia.org/wikipedia/commons/4/4b/Royal_Johannesburg_-_Africa_Padel.jpg',

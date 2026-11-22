@@ -60,7 +60,7 @@ class ChatbotTest extends TestCase
             ->call('handleBotResponse', 'cancellation')
             ->assertCount('messages', 3)
             ->assertSee('cancellation')
-            ->assertSee('Booking & Cancellation Rules');
+            ->assertSee('Booking and cancellation rules');
     }
 
     public function test_chatbot_can_be_cleared(): void
@@ -71,7 +71,7 @@ class ChatbotTest extends TestCase
             ->call('handleBotResponse', 'Hello')
             ->call('clearChat')
             ->assertCount('messages', 1)
-            ->assertSee('Chat cleared!');
+            ->assertSee('Chat cleared.');
     }
 
     public function test_markdown_parser_converts_bold_and_italic(): void
@@ -140,7 +140,7 @@ class ChatbotTest extends TestCase
             ->assertSee('Test Court')
             ->call('confirmPendingBooking')
             ->assertSet('pendingBooking', null)
-            ->assertSee('Booking Confirmed!');
+            ->assertSee('Booking confirmed.');
 
         $this->assertDatabaseHas('bookings', [
             'court_id' => $court->id,
@@ -279,7 +279,7 @@ class ChatbotTest extends TestCase
             return Http::response(['error' => 'busy'], 503);
         }]);
 
-        $this->askBot(Livewire::test(Chatbot::class), 'Hello')->assertSee('quick query fallback');
+        $this->askBot(Livewire::test(Chatbot::class), 'Hello')->assertSee('basic answer instead');
         Http::assertSentCount(1);
     }
 
